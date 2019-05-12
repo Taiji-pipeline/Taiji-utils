@@ -19,18 +19,24 @@ import Text.Blaze.Html.Renderer.Text (renderHtml)
 import qualified Data.Text.Lazy.IO as T
 import qualified Data.Text as T
 
-savePlots :: FilePath -> [VLSpec] -> IO ()
-savePlots output = T.writeFile output . renderHtml . mkHtml 
+import Taiji.Utils.Plot.ECharts
 
-mkHtml :: [VLSpec] -> H.Html
-mkHtml vls = H.docTypeHtml $ do
+savePlots :: FilePath -> [VLSpec] -> [EChart] -> IO ()
+savePlots output vega echart = T.writeFile output $ renderHtml $ mkHtml vega echart
+
+mkHtml :: [VLSpec] -> [EChart] -> H.Html
+mkHtml vls ec = H.docTypeHtml $ do
     H.head $ do
         H.script H.! H.src "https://cdn.jsdelivr.net/npm/vega@5" $ mempty
         H.script H.! H.src "https://cdn.jsdelivr.net/npm/vega-lite@3" $ mempty
         H.script H.! H.src "https://cdn.jsdelivr.net/npm/vega-embed@4" $ mempty
-    H.body $ H.div vega
+        H.script H.! H.src "https://cdnjs.cloudflare.com/ajax/libs/echarts/4.2.1/echarts.min.js" $ mempty
+    H.body $ do
+      H.div vega
+      H.div echart
   where
     vega = sequence_ $ zipWith (\i v -> vegaEmbed ("vega" ++ show i) v) [0..] vls
+    echart = sequence_ $ zipWith (\i v -> embedEchart ("echart" ++ show i) v) [0..] ec
 
 vegaEmbed :: String   -- ^ id
           -> VLSpec
@@ -73,18 +79,18 @@ vegaStackBar t xl yl xdat ydat =
             M.fromList [(xl, toJSON x), (yl, toJSON y), ("category", toJSON c)]
     in [aesonQQ|
       { "$schema": "https://vega.github.io/schema/vega-lite/v3.json",
-        "title": #{ t },
+        "title": #{t},
         "data": {
-          "values": #{ dat }
+          "values": #{dat}
         },
         "mark": "bar",
         "encoding": {
-          "x": {"field": #{ xl }, "type": "nominal"},
+          "x": {"field": #{xl}, "type": "nominal"},
           "y": {
             "aggregate": "sum",
-            "field": #{ yl },
+            "field": #{yl},
             "type": "quantitative",
-            "axis": {"title": #{ yl },
+            "axis": { "title": #{yl} }
           },
           "color": {"field": "category", "type": "nominal"}
         }
