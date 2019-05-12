@@ -1,0 +1,20 @@
+resolver:    nightly-2019-05-11
+
+packages:
+- .
+
+extra-deps:
+
+- git:     https://github.com/Taiji-pipeline/bio-pipelines.git
+  commit:  3b756e3ff0cb31c4e9ed8a1cc8d24c2ea6951af6
+
+- git:     https://github.com/Taiji-pipeline/bio-experiments.git
+  commit:  5fd7472babf427606058594c089abf689b7b89f4
+
+- git:     https://github.com/kaizhang/bioinformatics-toolkit.git
+  commit:  75a8a813410a5c8267a59794c875f4d277ceb1be
+  subdirs: 
+    - bioinformatics-toolkit
+
+- clustering-0.4.1
+- HsHTSLib-1.9.2
