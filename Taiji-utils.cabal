@@ -17,6 +17,7 @@ library
   ghc-options:         -Wall
   exposed-modules:     Taiji.Types
                        Taiji.Utils.Plot
+                       Taiji.Utils.DataFrame
                        Taiji.Utils.Plot.ECharts
   build-depends:       base >= 4.7 && < 5
                      , aeson
@@ -27,13 +28,18 @@ library
                      , bytestring
                      , blaze-html
                      , case-insensitive
+                     , clustering
                      , data-default-class
                      , double-conversion
                      , hashable
                      , hvega
+                     , matrices
+                     , jmacro
                      , lens
                      , text
+                     , wl-pprint-text
                      , unordered-containers
+                     , vector
   default-language:    Haskell2010
 
 source-repository head
