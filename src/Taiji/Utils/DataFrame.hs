@@ -5,6 +5,7 @@ module Taiji.Utils.DataFrame
     ( DataFrame(..)
     , DataFrameIndex(..)
     , mkDataFrame
+    , isEmpty
     , cbind
     , rowNames
     , colNames
@@ -71,6 +72,11 @@ instance DataFrameIndex T.Text where
             (error $ "index doesn't exist: " ++ T.unpack i) i $
             _dataframe_col_names_idx df) idx
 
+isEmpty :: DataFrame a -> Bool
+isEmpty df = r == 0 || c == 0
+  where
+    (r,c) = M.dim $ _dataframe_data df
+
 cbind :: [DataFrame a] -> DataFrame a
 cbind dfs | allTheSame (map _dataframe_row_names dfs) = DataFrame
     { _dataframe_row_names = row_names
@@ -118,19 +124,23 @@ filterRows fn df = df
 type ReodrderFn a = [(T.Text, V.Vector a)] -> [(T.Text, V.Vector a)]
 
 reorderRows :: ReodrderFn a -> DataFrame a -> DataFrame a
-reorderRows fn df = df
-    { _dataframe_row_names = V.fromList names
-    , _dataframe_row_names_idx = HM.fromList $ L.zip names [0..]
-    , _dataframe_data = M.fromRows rows }
+reorderRows fn df
+    | isEmpty df = df
+    | otherwise = df
+        { _dataframe_row_names = V.fromList names
+        , _dataframe_row_names_idx = HM.fromList $ L.zip names [0..]
+        , _dataframe_data = M.fromRows rows }
   where
     (names, rows) = L.unzip $ fn $ L.zip (V.toList $ _dataframe_row_names df) $
         M.toRows $ _dataframe_data df
 
 reorderColumns :: ReodrderFn a -> DataFrame a -> DataFrame a
-reorderColumns fn df = df
-    { _dataframe_col_names = V.fromList names
-    , _dataframe_col_names_idx = HM.fromList $ L.zip names [0..]
-    , _dataframe_data = M.fromColumns cols}
+reorderColumns fn df
+    | isEmpty df = df
+    | otherwise = df
+        { _dataframe_col_names = V.fromList names
+        , _dataframe_col_names_idx = HM.fromList $ L.zip names [0..]
+        , _dataframe_data = M.fromColumns cols}
   where
     (names, cols) = L.unzip $ fn $ L.zip (V.toList $ _dataframe_col_names df) $
         M.toColumns $ _dataframe_data df

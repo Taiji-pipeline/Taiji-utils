@@ -65,12 +65,94 @@ stackBar title xlab ydat =
         } |]
         -}
 
-punchChart :: DataFrame (Double, Double) -> EChart
-punchChart df = EChart $ \eid -> displayT $ renderOneLine $
+punchChart :: [(String, DataFrame (Double, Double))] -> EChart
+punchChart dat = EChart $ \eid -> displayT $ renderOneLine $
     renderJs $ [jmacro|
         var myChart = echarts.init(document.getElementById(`(eid)`));
+        myChart.setOption(`baseOption`);
         myChart.setOption(`option`);
         |]
+  where
+    (nms, dfs) = unzip dat
+    option = [jmacroE| { options: `map mkPunchChartOpt dfs` } |]
+    baseOption = [jmacroE| {
+        baseOption: {
+            timeline: {
+                axisType: 'category',
+                data: `map mkTimelineItem nms`
+            },
+            series: [{
+                name: "Punch Card",
+                type: "scatter",
+                symbolSize: function (val) { return val[2]; },
+                itemStyle: {
+                    emphasis: {
+                        borderColor: 'black',
+                        borderWidth: 1
+                    }
+                }
+            }],
+            visualMap: {
+                precision: 2,
+                calculable: true,
+                bottom: "50%",
+                inRange: {
+                    color: ["#50a3ba", "#eac736", "#d94e5d"]
+                }
+            },
+            dataZoom: [
+                { 
+                    type: "slider",
+                    show: true,
+                    bottom: 60
+                },
+                {
+                    type: "slider",
+                    show: true,
+                    yAxisIndex: 0
+                }
+            ],
+            xAxis: {
+                type: "category",
+                axisLine: { show: false },
+                splitLine: {
+                    show: true,
+                    lineStyle: {
+                        color: "#ededed",
+                        type: "dashed"
+                    }
+                }
+            },
+            yAxis: {
+                type: "category",
+                axisLine: { show: false },
+                splitLine: {
+                    show: true,
+                    lineStyle: {
+                        color: "#ededed",
+                        type: "dashed"
+                    }
+                }
+            },
+            legend: {
+                data: ["Punch Card"],
+                left: "right"
+            },
+            tooltip: {
+                position: "top"
+            },
+            grid: {
+                left: 80,
+                top: 30,
+                bottom: 100,
+                right: 50,
+                containLabel: true
+            }
+        }
+    } |]
+
+mkPunchChartOpt :: DataFrame (Double, Double) -> JExpr
+mkPunchChartOpt df = option
   where
     df' = reorderColumns (orderByCluster fst) $ reorderRows (orderByCluster fst) df
     dat = zipWith3 (\[j,i] x y -> [i, j, x, y]) idx (linearMap (7, 25) xs) ys
@@ -79,74 +161,22 @@ punchChart df = EChart $ \eid -> displayT $ renderOneLine $
     ncol = fromIntegral $ M.cols $ _dataframe_data df'
     idx = sequence [[nrow - 1, nrow -2 .. 0], [0 .. ncol - 1]]
     option = [jmacroE| {
-        series: [{
-            data: `dat`,
-            name: "Punch Card",
-            type: "scatter",
-            symbolSize: function (val) { return val[2]; },
-            itemStyle: {
-                emphasis: {
-                    borderColor: 'black',
-                    borderWidth: 1
-                }
-            }
-        }],
+        series: [{ data: `dat` }],
         visualMap: {
-            min: `minimum ys`,
-            max: `maximum ys`,
-            precision: 2,
-            calculable: true,
-            inRange: {
-                color: ["#50a3ba", "#eac736", "#d94e5d"]
-            }
+            min: `if null ys then 0 else minimum ys`,
+            max: `if null ys then 0 else maximum ys`
         },
-        dataZoom: [
-            { show: true },
-            {
-                show: true,
-                yAxisIndex: 0
-            }
-        ],
-        xAxis: {
-            type: "category",
-            data: `colNames df'`,
-            axisLine: { show: false },
-            splitLine: {
-                show: true,
-                lineStyle: {
-                    color: "#999",
-                    type: "dashed"
-                }
-            }
-        },
-        yAxis: {
-            type: "category",
-            data: `rowNames df'`,
-            axisLine: { show: false },
-            splitLine: {
-                show: true,
-                lineStyle: {
-                    color: "#999",
-                    type: "dashed"
-                }
-            }
-        },
-        legend: {
-            data: ["Punch Card"],
-            left: "right"
-        },
-        tooltip: {
-            position: "top"
-        },
-        grid: {
-            left: 80,
-            top: 30,
-            bottom: 10,
-            right: 50,
-            containLabel: true
-        }
+        xAxis: { data: `colNames df'` },
+        yAxis: { data: `rowNames df'` }
     } |]
 
+mkTimelineItem :: String -> JExpr
+mkTimelineItem s = [jmacroE| {
+    value: `s`,
+    tooltip: { formatter: "Remove genes with CV less than {b}" },
+    symbol: "diamond",
+    symbolSize: 16
+    } |]
 
 linearMap :: (Double, Double) -> [Double] -> [Double]
 linearMap (lo, hi) xs = map f xs
