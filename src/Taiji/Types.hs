@@ -15,16 +15,29 @@ module Taiji.Types
     , EdgeType(..)
     , NetEdge(..)
     , edgeToLine
+
+    , SiteAffinity
+    , toSiteAffinity
+    , getSiteAffinity
+    , PeakAffinity
+    , toPeakAffinity
+    , getPeakAffinity
+
+    , BBIndex
+    , TFBS
+    , SiteInfo(..)
     ) where
 
 import           Bio.Data.Bed
-import Control.Lens
 import           Bio.Pipeline.Instances ()
 import           Bio.Pipeline.Utils     (Directory)
 import Bio.Utils.Misc (readDouble)
+import Data.BBI.BigBed (BBedFile)
 import           Data.Aeson
 import Data.Char
+import Lens.Micro ((^.))
 import qualified Data.ByteString.Char8  as B
+import qualified Data.HashMap.Strict as M
 import           Data.CaseInsensitive   (CI, mk, original)
 import           Data.Default.Class
 import Data.Maybe
@@ -135,3 +148,30 @@ instance Default (CI B.ByteString) where
 instance Serialize Value where
     put x = put $ encode x
     get = fromJust . decode <$> get
+
+-- | Affinity score of a TF binding site, from 0 to 1.
+newtype SiteAffinity = SiteAffinity
+    { getSiteAffinity :: Double } deriving (Ord, Eq)
+
+-- | Convert score [0,1000] to affinity score [0,1].
+toSiteAffinity :: Int -> SiteAffinity
+toSiteAffinity x = SiteAffinity $ fromIntegral x / 1000
+{-# INLINE toSiteAffinity #-}
+
+-- | Affinity score of a peak, from 0 to 1.
+newtype PeakAffinity = PeakAffinity
+    { getPeakAffinity :: Double } deriving (Ord, Eq)
+
+-- | Convert p-value to affinity score [0,1].
+toPeakAffinity :: Double -> PeakAffinity
+toPeakAffinity x = PeakAffinity $ 1 / (1 + exp (-(x - 5)))
+{-# INLINE toPeakAffinity #-}
+
+type BBIndex = M.HashMap B.ByteString BBedFile
+
+type TFBS = BEDExt BED3 SiteInfo
+
+data SiteInfo = SiteInfo
+    { _tf_name :: CI B.ByteString
+    , _site_affinity :: SiteAffinity
+    , _peak_affinity :: PeakAffinity }

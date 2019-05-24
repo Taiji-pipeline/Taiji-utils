@@ -19,3 +19,4 @@ extra-deps:
 - clustering-0.4.1
 - HsHTSLib-1.9.2
 - jmacro-0.6.16
+- bbi-0.1.1

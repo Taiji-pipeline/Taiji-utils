@@ -7,7 +7,6 @@ import Data.Aeson.QQ (aesonQQ)
 import Language.Javascript.JMacro
 import Data.Aeson
 import Data.Maybe
-import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import qualified Text.Blaze.Html5 as H hiding (style)
 import qualified Text.Blaze.Html5.Attributes as H
@@ -81,10 +80,20 @@ punchChart dat = EChart $ \eid -> displayT $ renderOneLine $
                 axisType: 'category',
                 data: `map mkTimelineItem nms`
             },
+            toolbox: {
+                show: true,
+                feature: {
+                    restore: {},
+                    dataZoom: {},
+                    saveAsImage: {
+                        pixelRatio: 3,
+                        excludeComponents: ["dataZoom", "timeline", "toolbox"]
+                    }
+                }
+            },
             series: [{
                 name: "Punch Card",
                 type: "scatter",
-                symbolSize: function (val) { return val[2]; },
                 itemStyle: {
                     emphasis: {
                         borderColor: 'black',
@@ -104,12 +113,32 @@ punchChart dat = EChart $ \eid -> displayT $ renderOneLine $
                 { 
                     type: "slider",
                     show: true,
-                    bottom: 60
+                    bottom: 60,
+                    showDataShadow: false,
+                    handleIcon: "M10.7,11.9v-1.3H9.3v1.3c-4.9,0.3-8.8,4.4-8.8,9.4c0,5,3.9,9.1,8.8,9.4v1.3h1.3v-1.3c4.9-0.3,8.8-4.4,8.8-9.4C19.5,16.3,15.6,12.2,10.7,11.9z M13.3,24.4H6.7V23h6.6V24.4z M13.3,19.6H6.7v-1.4h6.6V19.6z",
+                    handleSize: "80%",
+                    handleStyle: {
+                        color: "#fff",
+                        shadowBlur: 3,
+                        shadowColor: "rgba(0, 0, 0, 0.6)",
+                        shadowOffsetX: 2,
+                        shadowOffsetY: 2
+                    }
                 },
                 {
                     type: "slider",
                     show: true,
-                    yAxisIndex: 0
+                    yAxisIndex: 0,
+                    showDataShadow: false,
+                    handleIcon: "M10.7,11.9v-1.3H9.3v1.3c-4.9,0.3-8.8,4.4-8.8,9.4c0,5,3.9,9.1,8.8,9.4v1.3h1.3v-1.3c4.9-0.3,8.8-4.4,8.8-9.4C19.5,16.3,15.6,12.2,10.7,11.9z M13.3,24.4H6.7V23h6.6V24.4z M13.3,19.6H6.7v-1.4h6.6V19.6z",
+                    handleSize: "80%",
+                    handleStyle: {
+                        color: "#fff",
+                        shadowBlur: 3,
+                        shadowColor: "rgba(0, 0, 0, 0.6)",
+                        shadowOffsetX: 2,
+                        shadowOffsetY: 2
+                    }
                 }
             ],
             xAxis: {
@@ -136,14 +165,15 @@ punchChart dat = EChart $ \eid -> displayT $ renderOneLine $
             },
             legend: {
                 data: ["Punch Card"],
-                left: "right"
+                left: "left"
             },
             tooltip: {
-                position: "top"
+                position: "top",
+                formatter: function (params) { return(params.value[2]) }
             },
             grid: {
                 left: 80,
-                top: 30,
+                top: 50,
                 bottom: 100,
                 right: 50,
                 containLabel: true
@@ -155,13 +185,19 @@ mkPunchChartOpt :: DataFrame (Double, Double) -> JExpr
 mkPunchChartOpt df = option
   where
     df' = reorderColumns (orderByCluster fst) $ reorderRows (orderByCluster fst) df
-    dat = zipWith3 (\[j,i] x y -> [i, j, x, y]) idx (linearMap (7, 25) xs) ys
-    (xs, ys) = unzip $ concat $ M.toLists $ _dataframe_data df'
+    dat = zipWith3 (\[j,i] x y -> [i, j, x, y]) idx xs ys
+    (ys, xs) = unzip $ concat $ M.toLists $ _dataframe_data df'
+    min' = minimum xs
+    max' = maximum xs
     nrow = fromIntegral $ M.rows $ _dataframe_data df'
     ncol = fromIntegral $ M.cols $ _dataframe_data df'
     idx = sequence [[nrow - 1, nrow -2 .. 0], [0 .. ncol - 1]]
     option = [jmacroE| {
-        series: [{ data: `dat` }],
+        series: [{
+            data: `dat`,
+            symbolSize: function (val) { return
+                7 + (val[2] - `min'`) / (`max'` - `min'`) * (25 - 7); }
+        }],
         visualMap: {
             min: `if null ys then 0 else minimum ys`,
             max: `if null ys then 0 else maximum ys`

@@ -16,6 +16,7 @@ library
   hs-source-dirs:      src
   ghc-options:         -Wall
   exposed-modules:     Taiji.Types
+                       Taiji.Utils
                        Taiji.Utils.Plot
                        Taiji.Utils.DataFrame
                        Taiji.Utils.Plot.ECharts
@@ -24,9 +25,12 @@ library
                      , aeson-qq
                      , cereal
                      , bio-pipelines
+                     , bio-experiments
                      , bioinformatics-toolkit >= 0.5.0
+                     , bbi
                      , bytestring
                      , blaze-html
+                     , conduit
                      , case-insensitive
                      , clustering
                      , data-default-class
@@ -35,7 +39,7 @@ library
                      , hvega
                      , matrices
                      , jmacro
-                     , lens
+                     , microlens
                      , text
                      , wl-pprint-text
                      , unordered-containers
