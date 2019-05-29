@@ -23,7 +23,7 @@ library
   build-depends:       base >= 4.7 && < 5
                      , aeson
                      , aeson-qq
-                     , cereal
+                     , binary
                      , bio-pipelines
                      , bio-experiments
                      , bioinformatics-toolkit >= 0.5.0
@@ -33,6 +33,7 @@ library
                      , conduit
                      , case-insensitive
                      , clustering
+                     , deepseq
                      , data-default-class
                      , double-conversion
                      , hashable

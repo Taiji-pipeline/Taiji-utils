@@ -51,15 +51,6 @@ lp :: Int -> [Double] -> Double
 lp p = (**(1/fromIntegral p)) . foldl' (+) 0 . map (**fromIntegral p)
 {-# INLINE lp #-}
 
--- | Construct peak map from narrowpeaks.
-mkPeakMap :: [NarrowPeak] -> BEDTree PeakAffinity
-mkPeakMap = bedToTree max . map f
-  where
-    f x = let c = x^.chromStart + fromJust (x^.npPeak)
-              sc = toPeakAffinity $ fromJust $ x^.npPvalue
-          in (asBed (x^.chrom) (c-50) (c+50) :: BED3, sc)
-{-# INLINE mkPeakMap #-}
-
 -- | Read RNA expression data
 readExpression :: Double    -- ^ Threshold to call a gene as non-expressed
                -> B.ByteString  -- ^ cell type

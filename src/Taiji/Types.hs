@@ -26,6 +26,9 @@ module Taiji.Types
     , BBIndex
     , TFBS
     , SiteInfo(..)
+
+    , CellCluster(..)
+    , Cell(..)
     ) where
 
 import           Bio.Data.Bed
@@ -41,8 +44,9 @@ import qualified Data.HashMap.Strict as M
 import           Data.CaseInsensitive   (CI, mk, original)
 import           Data.Default.Class
 import Data.Maybe
-import           Data.Serialize         (Serialize (..))
+import           Data.Binary (Binary(..))
 import           GHC.Generics           (Generic)
+import Control.DeepSeq (NFData)
 import Data.Double.Conversion.ByteString (toShortest)
 
 data TaijiConfig = TaijiConfig
@@ -100,7 +104,7 @@ data NetNode = NetNode
     , _node_expression        :: Maybe Double
     } deriving (Generic, Show, Read, Eq, Ord)
 
-instance Serialize NetNode
+instance Binary NetNode
 
 nodeToLine :: NetNode -> B.ByteString
 nodeToLine NetNode{..} = B.intercalate ","
@@ -145,7 +149,7 @@ edgeToLine NetEdge{..} = B.intercalate "," $
 instance Default (CI B.ByteString) where
     def = ""
 
-instance Serialize Value where
+instance Binary Value where
     put x = put $ encode x
     get = fromJust . decode <$> get
 
@@ -175,3 +179,23 @@ data SiteInfo = SiteInfo
     { _tf_name :: CI B.ByteString
     , _site_affinity :: SiteAffinity
     , _peak_affinity :: PeakAffinity }
+
+
+data CellCluster = CellCluster
+    { _cluster_name :: B.ByteString
+    , _cluster_member :: [Cell]
+    } deriving (Generic)
+
+instance Binary CellCluster
+instance NFData CellCluster
+
+data Cell = Cell
+    { _cell_id :: B.ByteString
+    , _cell_x :: Double
+    , _cell_y :: Double
+    } deriving (Generic)
+
+instance Binary Cell
+instance NFData Cell
+
+
