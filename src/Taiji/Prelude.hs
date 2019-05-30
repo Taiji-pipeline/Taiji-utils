@@ -12,11 +12,10 @@ module Taiji.Prelude
     , (.~)
     , (&)
     , (%~)
+    , (%%~)
     , (.=)
     , mapped
     , traversed
-    , traverseOf
-    , traverseOf_
     , _1
     , _2
     , _3
@@ -37,6 +36,12 @@ import Data.Function (on)
 import Data.Ord
 import           Taiji.Types
 import           Control.Monad.Reader              (asks, ReaderT, liftIO)
+
+(%%~) ::  LensLike f s t a b -> (a -> f b) -> s -> f t
+(%%~) = id
+{-# INLINE (%%~) #-}
+
+infixr 4 %%~
 
 -- | Cutoff for edge weights
 edge_weight_cutoff :: Double
