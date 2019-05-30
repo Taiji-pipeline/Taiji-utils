@@ -45,6 +45,7 @@ import           Data.CaseInsensitive   (CI, mk, original)
 import           Data.Default.Class
 import Data.Maybe
 import           Data.Binary (Binary(..))
+import qualified Data.Serialize as S
 import           GHC.Generics           (Generic)
 import Control.DeepSeq (NFData)
 import Data.Double.Conversion.ByteString (toShortest)
@@ -63,20 +64,7 @@ data TaijiConfig = TaijiConfig
     , _taiji_external_network :: Maybe FilePath
     } deriving (Generic)
 
-instance Default TaijiConfig where
-    def = TaijiConfig
-        { _taiji_output_dir = "output"
-        , _taiji_input = "input.yml"
-        , _taiji_genome = def
-        , _taiji_bwa_index = def
-        , _taiji_star_index = def
-        , _taiji_annotation = def
-        , _taiji_rsem_index = def
-        , _taiji_genome_index = def
-        , _taiji_motif_file = def
-        , _taiji_tmp_dir = def
-        , _taiji_external_network = def
-        }
+instance Binary TaijiConfig
 
 -- Drop "_taiji_" prefix
 instance ToJSON TaijiConfig where
@@ -104,7 +92,11 @@ data NetNode = NetNode
     , _node_expression        :: Maybe Double
     } deriving (Generic, Show, Read, Eq, Ord)
 
-instance Binary NetNode
+instance S.Serialize (CI B.ByteString) where
+    put = S.put . original
+    get = fmap mk S.get
+
+instance S.Serialize NetNode
 
 nodeToLine :: NetNode -> B.ByteString
 nodeToLine NetNode{..} = B.intercalate ","
@@ -197,5 +189,3 @@ data Cell = Cell
 
 instance Binary Cell
 instance NFData Cell
-
-

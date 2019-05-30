@@ -15,7 +15,8 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
   ghc-options:         -Wall
-  exposed-modules:     Taiji.Types
+  exposed-modules:     Taiji.Prelude
+                       Taiji.Types
                        Taiji.Utils
                        Taiji.Utils.Plot
                        Taiji.Utils.DataFrame
@@ -30,6 +31,7 @@ library
                      , bbi
                      , bytestring
                      , blaze-html
+                     , cereal
                      , conduit
                      , case-insensitive
                      , clustering
@@ -41,6 +43,8 @@ library
                      , matrices
                      , jmacro
                      , microlens
+                     , microlens-mtl
+                     , mtl
                      , text
                      , wl-pprint-text
                      , unordered-containers
