@@ -6,23 +6,18 @@ module Taiji.Prelude
     , module Data.List
     , module Data.Ord
     , module Taiji.Types
+
+    , module Lens.Micro
+    , module Lens.Micro.Mtl
+    , (%%~)
+
     , edge_weight_cutoff
     , on
-    , (^.)
-    , (.~)
-    , (&)
-    , (%~)
-    , (%%~)
-    , (.=)
-    , mapped
-    , traversed
-    , _1
-    , _2
-    , _3
-    , _Just
 
     , ReaderT
     , asks
+
+    , printf
     ) where
 
 import           Bio.Data.Experiment
@@ -36,6 +31,7 @@ import Data.Function (on)
 import Data.Ord
 import           Taiji.Types
 import           Control.Monad.Reader              (asks, ReaderT, liftIO)
+import Text.Printf (printf)
 
 (%%~) ::  LensLike f s t a b -> (a -> f b) -> s -> f t
 (%%~) = id
