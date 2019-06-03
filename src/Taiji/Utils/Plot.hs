@@ -31,6 +31,7 @@ mkHtml vls ec = H.docTypeHtml $ do
         H.script H.! H.src "https://cdn.jsdelivr.net/npm/vega-lite@3" $ mempty
         H.script H.! H.src "https://cdn.jsdelivr.net/npm/vega-embed@4" $ mempty
         H.script H.! H.src "https://cdnjs.cloudflare.com/ajax/libs/echarts/4.2.1/echarts.min.js" $ mempty
+        H.script H.! H.src "https://cdn.jsdelivr.net/npm/echarts-gl@1.1.1/dist/echarts-gl.min.js" $ mempty
     H.body $ do
       H.div vega
       H.div echart

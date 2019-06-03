@@ -1,5 +1,6 @@
 module Taiji.Prelude
     ( module Bio.Data.Experiment
+    , module Bio.Pipeline
     , module Conduit
     , module Control.Monad
     , module Data.Maybe
@@ -21,6 +22,7 @@ module Taiji.Prelude
     ) where
 
 import           Bio.Data.Experiment
+import           Bio.Pipeline
 import           Conduit
 import Control.Monad
 import Lens.Micro

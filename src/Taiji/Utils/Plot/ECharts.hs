@@ -12,6 +12,7 @@ import qualified Text.Blaze.Html5 as H hiding (style)
 import qualified Text.Blaze.Html5.Attributes as H
 import Text.PrettyPrint.Leijen.Text (renderOneLine, displayT)
 import qualified Data.Matrix            as M
+import qualified Data.HashMap.Strict as HM
 
 import Taiji.Utils.DataFrame hiding (zip, unzip)
 
@@ -19,9 +20,100 @@ newtype EChart = EChart (String -> TL.Text)
 
 embedEchart :: String -> EChart -> H.Html
 embedEchart eid (EChart e) = H.div $ do
-    H.div H.! H.id (H.toValue eid) H.! H.style "width: 900px;height:700px;" $ mempty
+    H.div H.! H.id (H.toValue eid) H.! H.style "width: 1200px;height:700px;" $ mempty
     H.script H.! H.type_ "text/javascript" $ H.toHtml $ e eid
 
+scatter3D :: [(String, [[Double]])] -> EChart
+scatter3D series = EChart $ \eid -> displayT $ renderOneLine $
+    renderJs $ [jmacro|
+        var myChart = echarts.init(document.getElementById(`(eid)`));
+        var !dataset = `toJSON $ HM.fromList series`;
+        myChart.setOption(`option`);
+        |]
+  where
+    option = [jmacroE| {
+        grid3D: [ {
+            width : "45%",
+            axisTick:false,
+            axisLabel:false,
+            axisPointer:false
+        }, {
+            width : "45%",
+            left: "50%",
+            axisTick:false,
+            axisLabel:false,
+            axisPointer:false
+        } ],
+        xAxis3D: [ {
+            grid3DIndex: 0,
+            name: "dim1"
+        }, {
+            grid3DIndex: 1,
+            name: "dim1"
+        } ],
+        yAxis3D: [ {
+            grid3DIndex: 0,
+            name: "dim2"
+        }, {
+            grid3DIndex: 1,
+            name: "dim2"
+        } ],
+        zAxis3D: [ {
+            grid3DIndex: 0,
+            name: "dim3"
+        }, {
+            grid3DIndex: 1,
+            name: "dim3"
+        } ],
+        series: `map (mkSeries 1) series ++ map (mkSeries 0) series`,
+        legend: { data: `map fst series` },
+        color: [ 
+            "#ff7f50", "#87cefa", "#da70d6", "#32cd32", "#6495ed", 
+            "#ff69b4", "#ba55d3", "#cd5c5c", "#ffa500", "#40e0d0", 
+            "#1e90ff", "#ff6347", "#7b68ee", "#00fa9a", "#ffd700", 
+            "#6b8e23", "#ff00ff", "#3cb371", "#b8860b", "#30e0e0" 
+        ],
+        visualMap: {
+            seriesIndex: `[0 .. length series - 1]`,
+            precision: 2,
+            calculable: true,
+            min: `minimum $ map (!!3) $ concatMap snd series`,
+            max: `maximum $ map (!!3) $ concatMap snd series`,
+            right: 10,
+            inRange: {
+                color: ["#50a3ba", "#eac736", "#d94e5d"]
+            }
+        }
+    } |]
+    mkSeries i (label, _) = [jmacroE| {
+        grid3DIndex: `i::Int`,
+        type: 'scatter3D',
+        symbolSize: 3,
+        name: `label`,
+        data: dataset[`label`]
+    } |]
+
+scatter :: [(String, [[Double]])]
+        -> EChart
+scatter series = EChart $ \eid -> displayT $ renderOneLine $
+    renderJs $ [jmacro|
+        var myChart = echarts.init(document.getElementById(`(eid)`));
+        myChart.setOption(`option`);
+        |]
+  where
+    option = [jmacroE| {
+        series: `map mkSeries series`,
+        legend: { data: `map fst series` },
+        grid: {show:true},
+        xAxis: {show: false, scale: true},
+        yAxis: {show: false, scale: true}
+    } |]
+    mkSeries (label, dat) = [jmacroE| {
+        name: `label`,
+        data: `dat`,
+        type: 'scatter',
+        symbolSize: 3
+    } |]
 
         {-
 stackBar :: T.Text   -- ^ title
@@ -182,7 +274,8 @@ punchChart dat = EChart $ \eid -> displayT $ renderOneLine $
     } |]
 
 mkPunchChartOpt :: DataFrame (Double, Double) -> JExpr
-mkPunchChartOpt df = option
+mkPunchChartOpt df | isEmpty df = [jmacroE| {} |]
+                   | otherwise = option
   where
     df' = reorderColumns (orderByCluster fst) $ reorderRows (orderByCluster fst) df
     dat = zipWith3 (\[j,i] x y -> [i, j, x, y]) idx xs ys

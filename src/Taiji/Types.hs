@@ -185,6 +185,7 @@ data Cell = Cell
     { _cell_id :: B.ByteString
     , _cell_x :: Double
     , _cell_y :: Double
+    , _cell_z :: Double
     } deriving (Generic)
 
 instance Binary Cell
