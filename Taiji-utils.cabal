@@ -37,6 +37,7 @@ library
                      , clustering
                      , deepseq
                      , data-default-class
+                     , data-ordlist
                      , double-conversion
                      , hashable
                      , hvega

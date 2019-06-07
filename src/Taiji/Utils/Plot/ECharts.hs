@@ -7,6 +7,10 @@ import Data.Aeson.QQ (aesonQQ)
 import Language.Javascript.JMacro
 import Data.Aeson
 import Data.Maybe
+import Control.Arrow
+import Data.List (groupBy)
+import Data.List.Ordered (nubSort)
+import Data.Function (on)
 import qualified Data.Text.Lazy as TL
 import qualified Text.Blaze.Html5 as H hiding (style)
 import qualified Text.Blaze.Html5.Attributes as H
@@ -23,14 +27,28 @@ embedEchart eid (EChart e) = H.div $ do
     H.div H.! H.id (H.toValue eid) H.! H.style "width: 1200px;height:700px;" $ mempty
     H.script H.! H.type_ "text/javascript" $ H.toHtml $ e eid
 
-scatter3D :: [(String, [[Double]])] -> EChart
-scatter3D series = EChart $ \eid -> displayT $ renderOneLine $
-    renderJs $ [jmacro|
+data VisualMap = Continuous [Double]
+               | Categorical [String]
+
+type Point3D = (Double, Double, Double)
+
+scatter3D :: [(String, [Point3D])]
+          -> VisualMap
+          -> EChart
+scatter3D dat viz = EChart $ \eid -> displayT $ renderOneLine $ renderJs $
+    [jmacro|
         var myChart = echarts.init(document.getElementById(`(eid)`));
-        var !dataset = `toJSON $ HM.fromList series`;
+        var !dataset = `dataPoints`;
         myChart.setOption(`option`);
-        |]
+    |]
   where
+    dataPoints =
+        let f (nm, (x, y, z)) v = (nm, [toJSON x, toJSON y, toJSON z, toJSON v])
+        in toJSON $ HM.fromList $ map (first head . unzip) $ groupBy ((==) `on` fst) $ case viz of
+            Continuous vs -> zipWith f points vs
+            Categorical vs ->zipWith f points vs
+      where
+        points = concatMap (\(x,y) -> zip (repeat x) y) dat
     option = [jmacroE| {
         grid3D: [ {
             width : "45%",
@@ -65,23 +83,22 @@ scatter3D series = EChart $ \eid -> displayT $ renderOneLine $
             grid3DIndex: 1,
             name: "dim3"
         } ],
-        series: `map (mkSeries 1) series ++ map (mkSeries 0) series`,
-        legend: { data: `map fst series` },
+        series: `map (mkSeries 1) dat ++ map (mkSeries 0) dat`,
+        legend: { data: `map fst dat` },
+        visualMap: `visualMap`,
         color: [ 
             "#ff7f50", "#87cefa", "#da70d6", "#32cd32", "#6495ed", 
             "#ff69b4", "#ba55d3", "#cd5c5c", "#ffa500", "#40e0d0", 
             "#1e90ff", "#ff6347", "#7b68ee", "#00fa9a", "#ffd700", 
             "#6b8e23", "#ff00ff", "#3cb371", "#b8860b", "#30e0e0" 
         ],
-        visualMap: {
-            seriesIndex: `[0 .. length series - 1]`,
-            precision: 2,
-            calculable: true,
-            min: `minimum $ map (!!3) $ concatMap snd series`,
-            max: `maximum $ map (!!3) $ concatMap snd series`,
-            right: 10,
-            inRange: {
-                color: ["#50a3ba", "#eac736", "#d94e5d"]
+        toolbox: {
+            show: true,
+            feature: {
+                saveAsImage: {
+                    pixelRatio: 3,
+                    excludeComponents: ["toolbox"]
+                }
             }
         }
     } |]
@@ -92,6 +109,26 @@ scatter3D series = EChart $ \eid -> displayT $ renderOneLine $
         name: `label`,
         data: dataset[`label`]
     } |]
+    visualMap = case viz of
+        Continuous vs -> [jmacroE| {
+            seriesIndex: `[0 .. length dat - 1]`,
+            precision: 2,
+            calculable: true,
+            min: `minimum vs`,
+            max: `maximum vs`,
+            right: 10,
+            inRange: {
+                color: ["#50a3ba", "#eac736", "#d94e5d"]
+            }
+        } |]
+        Categorical c -> [jmacroE| {
+            type: "piecewise",
+            seriesIndex: `[0 .. length dat - 1]`,
+            right: 10,
+            categories: `nubSort c`,
+            inRange: { symbol: { '': 'squre' } }
+        } |]
+
 
 scatter :: [(String, [[Double]])]
         -> EChart
@@ -115,7 +152,7 @@ scatter series = EChart $ \eid -> displayT $ renderOneLine $
         symbolSize: 3
     } |]
 
-        {-
+{-
 stackBar :: T.Text   -- ^ title
          -> [T.Text]  -- ^ X data
          -> [(T.Text, [Double])]  -- ^ Y data
