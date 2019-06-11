@@ -256,18 +256,17 @@ scatter series = EChart $ \eid -> displayT $ renderOneLine $
     } |]
     -}
 
-{-
-stackBar :: T.Text   -- ^ title
-         -> [T.Text]  -- ^ X data
-         -> [(T.Text, [Double])]  -- ^ Y data
+stackBar :: String -- ^ title
+         -> [String]  -- ^ X data
+         -> [(String, [Double])]  -- ^ Y data
          -> EChart
-stackBar title xlab ydat = 
-    let dat = flip map ydat $ \(lab, ys) -> [aesonQQ| {
-            name: #{lab},
-            type: "bar",
-            stack: "stack",
-            data: #{ys} } |]
-    in EChart $ B.unpack $ encode [aesonQQ| {
+stackBar title xlab ydat = EChart $ \eid -> displayT $ renderOneLine $
+    renderJs $ [jmacro|
+        var myChart = echarts.init(document.getElementById(`(eid)`));
+        myChart.setOption(`option`);
+        |]
+  where
+    option = [jmacroE| {
         toolbox: {
             feature: {
                 dataZoom: {},
@@ -286,16 +285,20 @@ stackBar title xlab ydat =
             axisPointer : { type : "shadow" }
         }, 
         legend: {
-            data: #{fst $ unzip ydat}
+            data: `fst $ unzip ydat`
         },
         xAxis: [ {
             type : "category",
-            data : #{ xlab }
+            data : `xlab`
         } ],
         yAxis : [ { type : "value" } ],
-        series : #{dat}
-        } |]
-        -}
+        series : `dat`
+    } |]
+    dat = flip map ydat $ \(lab, ys) -> [aesonQQ| {
+        name: #{lab},
+        type: "bar",
+        stack: "stack",
+        data: #{ys} } |]
 
 punchChart :: [(String, DataFrame (Double, Double))] -> EChart
 punchChart dat = EChart $ \eid -> displayT $ renderOneLine $
