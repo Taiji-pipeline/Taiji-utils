@@ -21,6 +21,11 @@ library
                        Taiji.Utils.Plot
                        Taiji.Utils.DataFrame
                        Taiji.Utils.Plot.ECharts
+                       Taiji.Utils.Plot.ECharts.Bar
+                       Taiji.Utils.Plot.ECharts.Types
+                       Taiji.Utils.Plot.ECharts.Scatter
+                       Taiji.Utils.Plot.ECharts.Heatmap
+                       Taiji.Utils.Plot.ECharts.PunchChart
   build-depends:       base >= 4.7 && < 5
                      , aeson
                      , aeson-qq
@@ -46,6 +51,8 @@ library
                      , microlens
                      , microlens-mtl
                      , mtl
+                     , statistics
+                     , dense-linear-algebra
                      , text
                      , wl-pprint-text
                      , unordered-containers

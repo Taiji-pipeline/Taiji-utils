@@ -176,7 +176,7 @@ data SiteInfo = SiteInfo
 data CellCluster = CellCluster
     { _cluster_name :: B.ByteString
     , _cluster_member :: [Cell]
-    } deriving (Generic)
+    } deriving (Generic, Show)
 
 instance Binary CellCluster
 instance NFData CellCluster
@@ -188,7 +188,7 @@ data Cell = Cell
     , _cell_z :: Double
     , _cell_barcode :: B.ByteString
     , _cell_coverage :: Int
-    } deriving (Generic)
+    } deriving (Generic, Show)
 
 instance Binary Cell
 instance NFData Cell

@@ -6,6 +6,7 @@ module Taiji.Utils.DataFrame
     , DataFrameIndex(..)
     , mkDataFrame
     , isEmpty
+    , Taiji.Utils.DataFrame.transpose
     , cbind
     , rowNames
     , colNames
@@ -13,6 +14,7 @@ module Taiji.Utils.DataFrame
     , reorderColumns
     , reorderRows
     , mapRows
+    , mapCols
     , filterRows
     , Taiji.Utils.DataFrame.zip
     , Taiji.Utils.DataFrame.unzip
@@ -20,6 +22,10 @@ module Taiji.Utils.DataFrame
     , writeTable
     , readTable
     , orderByCluster
+    , orderDataFrame
+    
+    , pearson
+    , spearman
     ) where
 
 import           Bio.Utils.Functions    (ihs')
@@ -34,6 +40,8 @@ import AI.Clustering.Hierarchical hiding (normalize)
 import qualified Data.Matrix            as M
 import qualified Data.Vector            as V
 import qualified Data.HashMap.Strict    as HM
+import Statistics.Correlation (pearsonMatByRow, spearmanMatByRow)
+import Statistics.Matrix (toRowLists, fromRowLists)
 
 data DataFrame a = DataFrame
     { _dataframe_row_names :: V.Vector T.Text
@@ -56,6 +64,7 @@ mkDataFrame r c d = DataFrame
 
 class DataFrameIndex i where
     csub :: DataFrame a -> [i] -> DataFrame a
+    rsub :: DataFrame a -> [i] -> DataFrame a
 
 instance DataFrameIndex Int where
     csub df idx = df
@@ -64,6 +73,12 @@ instance DataFrameIndex Int where
         , _dataframe_data = M.fromColumns $ map (_dataframe_data df `M.takeColumn`) idx }
       where
         col_names = map (_dataframe_col_names df V.!) idx
+    rsub df idx = df
+        { _dataframe_row_names = V.fromList row_names
+        , _dataframe_row_names_idx = HM.fromList $ L.zip row_names [0..]
+        , _dataframe_data = M.fromRows $ map (_dataframe_data df `M.takeRow`) idx }
+      where
+        row_names = map (_dataframe_row_names df V.!) idx
 
 instance DataFrameIndex T.Text where
     csub df idx = csub df idx'
@@ -71,6 +86,12 @@ instance DataFrameIndex T.Text where
         idx' = map (\i -> HM.lookupDefault
             (error $ "index doesn't exist: " ++ T.unpack i) i $
             _dataframe_col_names_idx df) idx
+    rsub df idx = rsub df idx'
+      where
+        idx' = map (\i -> HM.lookupDefault
+            (error $ "index doesn't exist: " ++ T.unpack i) i $
+            _dataframe_row_names_idx df) idx
+
 
 isEmpty :: DataFrame a -> Bool
 isEmpty df = r == 0 || c == 0
@@ -102,6 +123,10 @@ unzip df = (df{_dataframe_data = a}, df{_dataframe_data = b})
   where
     (a,b) = M.unzip $ _dataframe_data df
 
+transpose :: DataFrame a -> DataFrame a
+transpose DataFrame{..} = DataFrame _dataframe_col_names _dataframe_col_names_idx
+    _dataframe_row_names _dataframe_row_names_idx $ M.tr _dataframe_data
+
 rowNames :: DataFrame a -> [T.Text]
 rowNames DataFrame{..} = V.toList _dataframe_row_names
 
@@ -111,6 +136,10 @@ colNames DataFrame{..} = V.toList _dataframe_col_names
 mapRows :: (V.Vector a -> V.Vector b) -> DataFrame a -> DataFrame b
 mapRows fn df = df
     { _dataframe_data = M.fromRows $ map fn $ M.toRows $ _dataframe_data df }
+
+mapCols :: (V.Vector a -> V.Vector b) -> DataFrame a -> DataFrame b
+mapCols fn df = df
+    { _dataframe_data = M.fromColumns $ map fn $ M.toColumns $ _dataframe_data df }
 
 filterRows :: (T.Text -> V.Vector a -> Bool) -> DataFrame a -> DataFrame a
 filterRows fn df = df
@@ -205,3 +234,16 @@ orderByCluster :: (a -> Double) -> ReodrderFn a
 orderByCluster f xs = flatten $ hclust Ward (V.fromList xs) dist
   where
     dist = euclidean `on` V.map f . snd
+
+pearson :: DataFrame Double -> DataFrame Double
+pearson DataFrame{..} = DataFrame _dataframe_row_names _dataframe_row_names_idx 
+    _dataframe_row_names _dataframe_row_names_idx $ M.fromLists $
+    toRowLists $ pearsonMatByRow $ fromRowLists $ M.toLists _dataframe_data 
+
+spearman :: DataFrame Double -> DataFrame Double
+spearman DataFrame{..} = DataFrame _dataframe_row_names _dataframe_row_names_idx 
+    _dataframe_row_names _dataframe_row_names_idx $ M.fromLists $
+    toRowLists $ spearmanMatByRow $ fromRowLists $ M.toLists _dataframe_data 
+
+orderDataFrame :: (a -> Double) -> DataFrame a -> DataFrame a
+orderDataFrame f = reorderColumns (orderByCluster f) . reorderRows (orderByCluster f)
