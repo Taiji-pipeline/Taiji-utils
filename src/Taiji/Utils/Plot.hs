@@ -19,7 +19,7 @@ import Text.Blaze.Html.Renderer.Text (renderHtml)
 import qualified Data.Text.Lazy.IO as T
 import qualified Data.Text as T
 
-import Taiji.Utils.Plot.ECharts
+import Taiji.Utils.Plot.ECharts (EChart, embedEchart)
 
 savePlots :: FilePath -> [VLSpec] -> [EChart] -> IO ()
 savePlots output vega echart = T.writeFile output $ renderHtml $ mkHtml vega echart

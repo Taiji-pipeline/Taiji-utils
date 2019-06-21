@@ -5,13 +5,8 @@ module Taiji.Utils.Plot.ECharts.PunchChart
     ( punchChart
     , punchChart2 ) where
 
-import Data.Aeson.QQ (aesonQQ)
 import Language.Javascript.JMacro
-import Data.Aeson
-import Data.Maybe
-import Control.Arrow
 import Data.List (groupBy)
-import Text.PrettyPrint.Leijen.Text (renderOneLine, displayT)
 import qualified Data.Matrix            as M
 
 import Taiji.Utils.Plot.ECharts.Types
@@ -19,16 +14,10 @@ import Taiji.Utils.Plot.ECharts.Types
 import Taiji.Utils.DataFrame hiding (zip, unzip)
 
 punchChart :: [(String, DataFrame (Double, Double))] -> EChart
-punchChart dat = EChart $ \eid -> displayT $ renderOneLine $
-    renderJs $ [jmacro|
-        var myChart = echarts.init(document.getElementById(`(eid)`));
-        myChart.setOption(`baseOption`);
-        myChart.setOption(`option`);
-        |]
+punchChart dat = baseOption <> option [jmacroE| { options: `map mkPunchChartOpt dfs` } |]
   where
     (nms, dfs) = unzip dat
-    option = [jmacroE| { options: `map mkPunchChartOpt dfs` } |]
-    baseOption = [jmacroE| {
+    baseOption = option [jmacroE| {
         baseOption: {
             timeline: {
                 axisType: 'category',
@@ -178,11 +167,77 @@ linearMap (lo, hi) xs = map f xs
 {-# INLINE linearMap #-}
 
 punchChart2 :: DataFrame Double -> EChart
-punchChart2 df = EChart $ \eid -> displayT $ renderOneLine $
-    renderJs $ [jmacro|
-        var myChart = echarts.init(document.getElementById(`(eid)`));
-        myChart.setOption(`option`);
-        |]
+punchChart2 df = option [jmacroE| {
+    series: [{
+        name: "Punch Card",
+        type: "scatter",
+        itemStyle: {
+            emphasis: {
+                borderColor: 'black',
+                borderWidth: 1
+            }
+        },
+        data: `dat`
+    }],
+    xAxis: {
+        type: "category",
+        data: `colNames df`,
+        axisLine: { show: false },
+        splitLine: {
+            show: true,
+            lineStyle: {
+                color: "#ededed",
+                type: "dashed"
+            }
+        }
+    },
+    yAxis: {
+        type: "category",
+        data: `rowNames df`,
+        axisLine: { show: false },
+        splitLine: {
+            show: true,
+            lineStyle: {
+                color: "#ededed",
+                type: "dashed"
+            }
+        }
+    },
+    legend: {
+        data: ["Punch Card"],
+        left: "left"
+    },
+    tooltip: {
+        position: "top",
+        formatter: function (params) { return(params.value[2]) }
+    },
+    grid: {
+        left: 80,
+        top: 50,
+        bottom: 100,
+        right: 50,
+        containLabel: true
+    },
+    visualMap: {
+        left: "right",
+        top: "10%",
+        dimension: 2,
+        min: `min'`,
+        max: `max'`,
+        itemWidth: 30,
+        itemHeight: 120,
+        calculable: true,
+        text: ["size"],
+        textGap: 30,
+        textStyle: { color: "#fff" },
+        inRange: { symbolSize: [10, 25] },
+        controller: {
+            inRange: {
+                color: ["#c23531"]
+            }
+        }
+    }
+    } |]
   where
     dat = zipWith (\[j,i] x -> [i, j, x, x]) idx values
     values = concat $ M.toLists $ _dataframe_data df
@@ -191,74 +246,3 @@ punchChart2 df = EChart $ \eid -> displayT $ renderOneLine $
     nrow = fromIntegral $ M.rows $ _dataframe_data df
     ncol = fromIntegral $ M.cols $ _dataframe_data df
     idx = sequence [[nrow - 1, nrow -2 .. 0], [0 .. ncol - 1]]
-    option = [jmacroE| {
-        series: [{
-            name: "Punch Card",
-            type: "scatter",
-            itemStyle: {
-                emphasis: {
-                    borderColor: 'black',
-                    borderWidth: 1
-                }
-            },
-            data: `dat`
-        }],
-        xAxis: {
-            type: "category",
-            data: `colNames df`,
-            axisLine: { show: false },
-            splitLine: {
-                show: true,
-                lineStyle: {
-                    color: "#ededed",
-                    type: "dashed"
-                }
-            }
-        },
-        yAxis: {
-            type: "category",
-            data: `rowNames df`,
-            axisLine: { show: false },
-            splitLine: {
-                show: true,
-                lineStyle: {
-                    color: "#ededed",
-                    type: "dashed"
-                }
-            }
-        },
-        legend: {
-            data: ["Punch Card"],
-            left: "left"
-        },
-        tooltip: {
-            position: "top",
-            formatter: function (params) { return(params.value[2]) }
-        },
-        grid: {
-            left: 80,
-            top: 50,
-            bottom: 100,
-            right: 50,
-            containLabel: true
-        },
-        visualMap: {
-            left: "right",
-            top: "10%",
-            dimension: 2,
-            min: `min'`,
-            max: `max'`,
-            itemWidth: 30,
-            itemHeight: 120,
-            calculable: true,
-            text: ["size"],
-            textGap: 30,
-            textStyle: { color: "#fff" },
-            inRange: { symbolSize: [10, 25] },
-            controller: {
-                inRange: {
-                    color: ["#c23531"]
-                }
-            }
-        }
-    } |]

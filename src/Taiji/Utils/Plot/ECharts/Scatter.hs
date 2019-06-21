@@ -7,19 +7,12 @@ module Taiji.Utils.Plot.ECharts.Scatter
     , scatter
     ) where
 
-import Data.Aeson.QQ (aesonQQ)
 import Language.Javascript.JMacro
 import Data.Aeson
-import Data.Maybe
 import Control.Arrow
 import Data.List (groupBy)
 import Data.List.Ordered (nubSort)
 import Data.Function (on)
-import qualified Data.Text.Lazy as TL
-import qualified Text.Blaze.Html5 as H hiding (style)
-import qualified Text.Blaze.Html5.Attributes as H
-import Text.PrettyPrint.Leijen.Text (renderOneLine, displayT)
-import qualified Data.Matrix            as M
 import qualified Data.HashMap.Strict as HM
 
 import Taiji.Utils.Plot.ECharts.Types
@@ -33,12 +26,7 @@ type Point2D = (Double, Double)
 scatter3D :: [(String, [Point3D])]
           -> VisualMap
           -> EChart
-scatter3D dat viz = EChart $ \eid -> displayT $ renderOneLine $ renderJs $
-    [jmacro|
-        var myChart = echarts.init(document.getElementById(`(eid)`));
-        var !dataset = `dataPoints`;
-        myChart.setOption(`option`);
-    |]
+scatter3D dat viz = o <> js [jmacro| var !dataset = `dataPoints`; |]
   where
     dataPoints =
         let f (nm, (x, y, z)) v = (nm, [toJSON x, toJSON y, toJSON z, toJSON v])
@@ -47,7 +35,7 @@ scatter3D dat viz = EChart $ \eid -> displayT $ renderOneLine $ renderJs $
             Categorical vs ->zipWith f points vs
       where
         points = concatMap (\(x,y) -> zip (repeat x) y) dat
-    option = [jmacroE| {
+    o = option [jmacroE| {
         grid3D: [ {
             width : "45%",
             axisTick:false,
@@ -130,12 +118,7 @@ scatter3D dat viz = EChart $ \eid -> displayT $ renderOneLine $ renderJs $
 scatter :: [(String, [Point2D])]
         -> VisualMap
         -> EChart
-scatter dat viz = EChart $ \eid -> displayT $ renderOneLine $ renderJs $
-    [jmacro|
-        var myChart = echarts.init(document.getElementById(`(eid)`));
-        var !dataset = `dataPoints`;
-        myChart.setOption(`option`);
-    |]
+scatter dat viz = o <> js [jmacro| var !dataset = `dataPoints`; |]
   where
     dataPoints =
         let f (nm, (x, y)) v = (nm, [toJSON x, toJSON y, toJSON v])
@@ -144,7 +127,7 @@ scatter dat viz = EChart $ \eid -> displayT $ renderOneLine $ renderJs $
             Categorical vs ->zipWith f points vs
       where
         points = concatMap (\(x,y) -> zip (repeat x) y) dat
-    option = [jmacroE| {
+    o = option [jmacroE| {
         grid: [ {
             width : "40%",
             show:true

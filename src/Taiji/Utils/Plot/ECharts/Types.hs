@@ -1,15 +1,45 @@
-{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE QuasiQuotes #-}
+module Taiji.Utils.Plot.ECharts.Types
+    ( EChart(..)
+    , option
+    , js
+    , toolbox
+    , title
+    ) where
 
-module Taiji.Utils.Plot.ECharts.Types where
+import Language.Javascript.JMacro
 
-import qualified Data.Text.Lazy as TL
-import qualified Text.Blaze.Html5 as H hiding (style)
-import qualified Text.Blaze.Html5.Attributes as H
+data EChart = EChart
+    { _option :: [JExpr]
+    , _js_codes :: JStat }
 
-newtype EChart = EChart (String -> TL.Text)
+instance Semigroup EChart where
+    (EChart a1 b1) <> (EChart a2 b2) = EChart (a1 <> a2) (b1 <> b2)
 
-embedEchart :: String -> EChart -> H.Html
-embedEchart eid (EChart e) = H.div $ do
-    H.div H.! H.id (H.toValue eid) H.! H.style "width: 1200px;height:700px;" $ mempty
-    H.script H.! H.type_ "text/javascript" $ H.toHtml $ e eid
+instance Monoid EChart where
+    mempty = EChart [] mempty
+
+option :: JExpr -> EChart
+option o = EChart [o] mempty
+
+js :: JStat -> EChart
+js j = EChart [] j
+
+toolbox :: EChart
+toolbox = option [jmacroE| {
+    toolbox: {
+        show: true,
+        feature: {
+            restore: {},
+            dataZoom: {},
+            saveAsImage: {
+                pixelRatio: 3,
+                excludeComponents: ["dataZoom", "timeline", "toolbox"]
+            }
+        }
+    }
+    }|]
+
+title :: String -> EChart
+title x = option [jmacroE| { title: {text: `x`} } |]
 
