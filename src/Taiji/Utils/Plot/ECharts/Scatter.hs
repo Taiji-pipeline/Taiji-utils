@@ -72,12 +72,7 @@ scatter3D dat viz = o <> js [jmacro| var !dataset = `dataPoints`; |]
         series: `map (mkSeries 1) dat ++ map (mkSeries 0) dat`,
         legend: { data: `map fst dat` },
         visualMap: `visualMap`,
-        color: [ 
-            "#ff7f50", "#87cefa", "#da70d6", "#32cd32", "#6495ed", 
-            "#ff69b4", "#ba55d3", "#cd5c5c", "#ffa500", "#40e0d0", 
-            "#1e90ff", "#ff6347", "#7b68ee", "#00fa9a", "#ffd700", 
-            "#6b8e23", "#ff00ff", "#3cb371", "#b8860b", "#30e0e0" 
-        ],
+        color: `defColors`,
         toolbox: {
             show: true,
             feature: {
@@ -91,7 +86,7 @@ scatter3D dat viz = o <> js [jmacro| var !dataset = `dataPoints`; |]
     mkSeries i (label, _) = [jmacroE| {
         grid3DIndex: `i::Int`,
         type: 'scatter3D',
-        symbolSize: 1.5,
+        symbolSize: 2.3,
         name: `label`,
         data: dataset[`label`]
     } |]
@@ -107,13 +102,16 @@ scatter3D dat viz = o <> js [jmacro| var !dataset = `dataPoints`; |]
                 color: ["#50a3ba", "#eac736", "#d94e5d"]
             }
         } |]
-        Categorical c -> [jmacroE| {
-            type: "piecewise",
-            seriesIndex: `[0 .. length dat - 1]`,
-            right: 10,
-            categories: `nubSort c`,
-            inRange: { symbol: { '': 'squre' } }
-        } |]
+        Categorical c -> 
+            let cats = nubSort c
+                colors = take (length cats) $ cycle defColors
+            in [jmacroE| {
+                type: "piecewise",
+                seriesIndex: `[0 .. length dat - 1]`,
+                right: 10,
+                categories: `cats`,
+                inRange: { color: `colors`}
+               } |]
 
 scatter :: [(String, [Point2D])]
         -> VisualMap
@@ -169,12 +167,7 @@ scatter dat viz = o <> js [jmacro| var !dataset = `dataPoints`; |]
         series: `map (mkSeries 1) dat ++ map (mkSeries 0) dat`,
         legend: { data: `map fst dat` },
         visualMap: `visualMap`,
-        color: [ 
-            "#ff7f50", "#87cefa", "#da70d6", "#32cd32", "#6495ed", 
-            "#ff69b4", "#ba55d3", "#cd5c5c", "#ffa500", "#40e0d0", 
-            "#1e90ff", "#ff6347", "#7b68ee", "#00fa9a", "#ffd700", 
-            "#6b8e23", "#ff00ff", "#3cb371", "#b8860b", "#30e0e0" 
-        ],
+        color: `defColors`,
         toolbox: {
             show: true,
             feature: {
@@ -205,10 +198,14 @@ scatter dat viz = o <> js [jmacro| var !dataset = `dataPoints`; |]
                 color: ["#50a3ba", "#eac736", "#d94e5d"]
             }
         } |]
-        Categorical c -> [jmacroE| {
-            type: "piecewise",
-            seriesIndex: `[0 .. length dat - 1]`,
-            right: 10,
-            categories: `nubSort c`,
-            inRange: { symbol: { '': 'squre' } }
-        } |]
+        Categorical c -> 
+            let cats = nubSort c
+                colors = take (length cats) $ cycle defColors
+            in [jmacroE| {
+                type: "piecewise",
+                seriesIndex: `[0 .. length dat - 1]`,
+                right: 10,
+                categories: `cats`,
+                inRange: { color: `colors`}
+               } |]
+

@@ -5,6 +5,9 @@ module Taiji.Utils.Plot.ECharts.Types
     , js
     , toolbox
     , title
+
+    , symbols
+    , defColors
     ) where
 
 import Language.Javascript.JMacro
@@ -43,3 +46,11 @@ toolbox = option [jmacroE| {
 title :: String -> EChart
 title x = option [jmacroE| { title: {text: `x`} } |]
 
+symbols :: [String]
+symbols = ["circle", "rect", "roundRect", "triangle", "diamond", "pin", "arrow"]
+
+defColors :: [String]
+defColors = [ "#ff7f50", "#87cefa", "#da70d6", "#32cd32", "#6495ed", 
+    "#ff69b4", "#ba55d3", "#cd5c5c", "#ffa500", "#40e0d0", 
+    "#1e90ff", "#ff6347", "#7b68ee", "#00fa9a", "#ffd700", 
+    "#6b8e23", "#ff00ff", "#3cb371", "#b8860b", "#30e0e0" ]

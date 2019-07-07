@@ -183,9 +183,8 @@ instance NFData CellCluster
 
 data Cell = Cell
     { _cell_id :: Int
-    , _cell_x :: Double
-    , _cell_y :: Double
-    , _cell_z :: Double
+    , _cell_2d :: (Double, Double)
+    , _cell_3d :: (Double, Double, Double)
     , _cell_barcode :: B.ByteString
     , _cell_coverage :: Int
     } deriving (Generic, Show)
