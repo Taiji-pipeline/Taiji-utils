@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE QuasiQuotes #-}
 
-module Taiji.Utils.Plot.ECharts.Bar where
+module Taiji.Utils.Plot.ECharts.Line (stackLine) where
 
 import Language.Javascript.JMacro
 import qualified Data.Matrix            as M
@@ -9,15 +9,8 @@ import qualified Data.Matrix            as M
 import Taiji.Utils.Plot.ECharts.Types
 import qualified Taiji.Utils.DataFrame as DF
 
-stackBar :: DF.DataFrame Double -> EChart
-stackBar df = option [jmacroE| {
-    toolbox: {
-        feature: {
-            dataZoom: {},
-            restore: {},
-            saveAsImage: {}
-        }
-    },
+stackLine :: DF.DataFrame Double -> EChart
+stackLine df = option [jmacroE| {
     grid: {
         left: "3%",
         right: "4%",
@@ -25,8 +18,7 @@ stackBar df = option [jmacroE| {
         containLabel: true
     },
     tooltip: {
-        trigger: "axis",
-        axisPointer : { type : "shadow" }
+        trigger: "axis"
     }, 
     legend: {
         data: `fst $ unzip ydat`
@@ -34,6 +26,7 @@ stackBar df = option [jmacroE| {
     xAxis: {
         type : "category",
         data : `xlab`,
+        boundaryGap: false,
         axisLabel: { rotate: 45 }
     },
     yAxis : { type : "value" },
@@ -44,7 +37,7 @@ stackBar df = option [jmacroE| {
     ydat = zip (DF.rowNames df) $ M.toLists $ DF._dataframe_data df
     dat = flip map ydat $ \(lab, ys) -> [jmacroE| {
         name: `lab`,
-        type: "bar",
+        type: "line",
         stack: "stack",
         data: `ys`
         } |]

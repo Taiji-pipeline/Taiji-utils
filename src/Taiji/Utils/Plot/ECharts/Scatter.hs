@@ -72,16 +72,7 @@ scatter3D dat viz = o <> js [jmacro| var !dataset = `dataPoints`; |]
         series: `map (mkSeries 1) dat ++ map (mkSeries 0) dat`,
         legend: { data: `map fst dat` },
         visualMap: `visualMap`,
-        color: `defColors`,
-        toolbox: {
-            show: true,
-            feature: {
-                saveAsImage: {
-                    pixelRatio: 3,
-                    excludeComponents: ["toolbox"]
-                }
-            }
-        }
+        color: `defColors`
     } |]
     mkSeries i (label, _) = [jmacroE| {
         grid3DIndex: `i::Int`,
@@ -128,10 +119,12 @@ scatter dat viz = o <> js [jmacro| var !dataset = `dataPoints`; |]
     o = option [jmacroE| {
         grid: [ {
             width : "40%",
+            containLabel: true,
             show:true
         }, {
             width : "40%",
             left: "50%",
+            containLabel: true,
             show:true
         } ],
         xAxis: [ {
@@ -167,21 +160,12 @@ scatter dat viz = o <> js [jmacro| var !dataset = `dataPoints`; |]
         series: `map (mkSeries 1) dat ++ map (mkSeries 0) dat`,
         legend: { data: `map fst dat` },
         visualMap: `visualMap`,
-        color: `defColors`,
-        toolbox: {
-            show: true,
-            feature: {
-                saveAsImage: {
-                    pixelRatio: 3,
-                    excludeComponents: ["toolbox"]
-                }
-            }
-        }
+        color: `defColors`
     } |]
     mkSeries i (label, _) = [jmacroE| {
         xAxisIndex: `i::Int`,
         yAxisIndex: `i::Int`,
-        type: 'scatter',
+        type: 'scatterGL',
         symbolSize: 1.5,
         name: `label`,
         data: dataset[`label`]
