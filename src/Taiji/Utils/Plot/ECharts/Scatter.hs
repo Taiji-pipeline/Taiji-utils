@@ -118,12 +118,15 @@ scatter dat viz = o <> js [jmacro| var !dataset = `dataPoints`; |]
         points = concatMap (\(x,y) -> zip (repeat x) y) dat
     o = option [jmacroE| {
         grid: [ {
-            width : "40%",
+            height: 500,
+            width: 500,
+            left: 50,
             containLabel: true,
             show:true
         }, {
-            width : "40%",
-            left: "50%",
+            height: 500,
+            width: 500,
+            right: 50,
             containLabel: true,
             show:true
         } ],
@@ -158,7 +161,7 @@ scatter dat viz = o <> js [jmacro| var !dataset = `dataPoints`; |]
             name: "dim2"
         } ],
         series: `map (mkSeries 1) dat ++ map (mkSeries 0) dat`,
-        legend: { data: `map fst dat` },
+        legend: { data: `map fst dat`, orient: 'vertical', top: 50 },
         visualMap: `visualMap`,
         color: `defColors`
     } |]
