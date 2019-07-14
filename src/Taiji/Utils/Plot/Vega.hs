@@ -32,6 +32,9 @@ embedVega eid (Vega vega) = H.div $ do
                     }
                 });
                 return target;
+            } else if (Array.isArray(target) && !Array.isArray(source)) {
+                target.push(source);
+                return target;
             } else {
                 return source;
             }
