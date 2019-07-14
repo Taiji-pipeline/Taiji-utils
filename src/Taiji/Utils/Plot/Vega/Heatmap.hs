@@ -79,7 +79,6 @@ contour points = option [jmacroE| {
             count: {signal: "count"}
         } ]
     } ],
-
     scales: [ {
         name: "x",
         type: "linear",
@@ -103,7 +102,6 @@ contour points = option [jmacroE| {
         domain: {data: "contours", field: "value"},
         range: "heatmap"
     } ],
-
     axes: [ {
         scale: "x",
         grid: true,
@@ -115,9 +113,7 @@ contour points = option [jmacroE| {
         domain: false,
         orient: "left"
     } ],
-
-    legends: [{ fill: "color", type: "gradient" }],
-
+    legends: [{ fill: "color", type: "gradient", title: "density" }],
     marks: [ {
         type: "path",
         from: {data: "contours"},
@@ -136,8 +132,8 @@ contour points = option [jmacroE| {
             update: {
                 x: {scale: "x", field: "x"},
                 y: {scale: "y", field: "y"},
-            size: {value: 4},
-            fill: [ {test: "points", value: "black"}, {value: "transparent"} ]
+            size: {value: 1},
+            fill: [ {test: "points", value: "rgba(81,81,82,0.7)"}, {value: "transparent"} ]
             }
         }
     } ],
