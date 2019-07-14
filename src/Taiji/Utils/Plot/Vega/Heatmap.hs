@@ -58,7 +58,7 @@ contour points = option [jmacroE| {
     signals: [ {
         name: "count",
         value: 10,
-        bind: {input: "select", options: [1, 5, 10, 20]}
+        bind: {input: "select", options: [5, 10, 20, 50]}
     }, {
         name: "points",
         value: true,
@@ -123,8 +123,6 @@ contour points = option [jmacroE| {
         from: {data: "contours"},
         encode: {
             enter: {
-                stroke: {value: "#888"},
-                strokeWidth: {value: 1},
                 fill: {scale: "color", field: "value"},
                 fillOpacity: {value: 0.35}
             }
