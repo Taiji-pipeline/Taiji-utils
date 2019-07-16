@@ -63,6 +63,14 @@ contour points = option [jmacroE| {
         name: "points",
         value: true,
         bind: {input: "checkbox"}
+    }, {
+        name: "x-axis",
+        value: "linear",
+        bind: {input: "select", options: ["linear", "log"]}
+    }, {
+        name: "y-axis",
+        value: "linear",
+        bind: {input: "select", options: ["linear", "symlog"]}
     } ],
 
     data: [ {
@@ -81,7 +89,7 @@ contour points = option [jmacroE| {
     } ],
     scales: [ {
         name: "x",
-        type: "linear",
+        type: {signal: "x-axis"},
         round: true,
         nice: true,
         zero: false,
@@ -89,7 +97,7 @@ contour points = option [jmacroE| {
         range: "width"
     }, {
         name: "y",
-        type: "linear",
+        type: {signal: "y-axis"},
         round: true,
         nice: true,
         zero: false,
