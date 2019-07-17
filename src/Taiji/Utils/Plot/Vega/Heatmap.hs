@@ -89,7 +89,7 @@ contour points = option [jmacroE| {
     } ],
     scales: [ {
         name: "x",
-        type: {signal: "x-axis"},
+        type: "linear",
         round: true,
         nice: true,
         zero: false,
@@ -97,7 +97,7 @@ contour points = option [jmacroE| {
         range: "width"
     }, {
         name: "y",
-        type: {signal: "y-axis"},
+        type: "linear",
         round: true,
         nice: true,
         zero: false,
