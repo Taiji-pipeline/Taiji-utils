@@ -25,7 +25,10 @@ embedVega eid (Vega vega) = H.div $ do
             return (typeof obj === "object" && obj !== null) || typeof obj === "function";
         }
         function deepMerge(target, source) {
-            if (isObject(target) && isObject(source)) {
+            if (Array.isArray(target) && !Array.isArray(source)) {
+                target.push(source);
+                return target;
+            } else if (isObject(target) && isObject(source)) {
                 Object.keys(source).forEach(function (k) { 
                     if(target[k]) {
                         target[k] = deepMerge(target[k], source[k]);
@@ -33,9 +36,6 @@ embedVega eid (Vega vega) = H.div $ do
                         target[k] = source[k];
                     }
                 });
-                return target;
-            } else if (Array.isArray(target) && !Array.isArray(source)) {
-                target.push(source);
                 return target;
             } else {
                 return source;

@@ -10,7 +10,7 @@ import Taiji.Utils.Plot.Vega.Types
 hist :: [Double] -> Vega
 hist input = option [jmacroE| {
     $schema: "https://vega.github.io/schema/vega-lite/v3.json",
-    data: `dat`,
+    data: {values: `dat`},
     layer: [ {
         mark: "bar",
         encoding: {
