@@ -29,6 +29,7 @@ library
                        Taiji.Utils.Plot.ECharts.PunchChart
                        Taiji.Utils.Plot.Vega
                        Taiji.Utils.Plot.Vega.Heatmap
+                       Taiji.Utils.Plot.Vega.Histogram
                        Taiji.Utils.Plot.Vega.Types
   build-depends:       base >= 4.7 && < 5
                      , aeson
