@@ -19,10 +19,15 @@ module Taiji.Prelude
     , asks
 
     , printf
+
+    , readDouble
+    , readInt
+    , toShortest
     ) where
 
 import           Bio.Data.Experiment
 import           Bio.Pipeline
+import           Bio.Utils.Misc (readInt, readDouble)
 import           Conduit
 import Control.Monad
 import Lens.Micro
@@ -34,6 +39,7 @@ import Data.Ord
 import           Taiji.Types
 import           Control.Monad.Reader              (asks, ReaderT, liftIO)
 import Text.Printf (printf)
+import Data.Double.Conversion.ByteString (toShortest)
 
 (%%~) ::  LensLike f s t a b -> (a -> f b) -> s -> f t
 (%%~) = id
