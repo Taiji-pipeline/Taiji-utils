@@ -62,6 +62,7 @@ data TaijiConfig = TaijiConfig
     , _taiji_motif_file   :: Maybe FilePath
     , _taiji_tmp_dir      :: Maybe FilePath
     , _taiji_external_network :: Maybe FilePath
+    , _taiji_cluster_resolution :: Maybe Double
     } deriving (Generic)
 
 instance Binary TaijiConfig
