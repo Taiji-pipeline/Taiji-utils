@@ -27,8 +27,8 @@ mkHtml vls ec = H.docTypeHtml $ do
       H.div vega
       H.div echart
   where
-    vega = sequence_ $ zipWith (\i v -> embedVega ("vega" ++ show i) v) [0..] vls
-    echart = sequence_ $ zipWith (\i v -> embedEchart ("echart" ++ show i) v) [0..] ec
+    vega = sequence_ $ zipWith (\i v -> embedVega ("vega" ++ show i) v) [0 :: Int ..] vls
+    echart = sequence_ $ zipWith (\i v -> embedEchart ("echart" ++ show i) v) [0 :: Int ..] ec
 
 {-
 vegaBar :: T.Text   -- ^ title

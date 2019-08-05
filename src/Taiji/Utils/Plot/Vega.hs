@@ -4,6 +4,7 @@
 module Taiji.Utils.Plot.Vega
     ( module Taiji.Utils.Plot.Vega.Heatmap
     , module Taiji.Utils.Plot.Vega.Histogram
+    , module Taiji.Utils.Plot.Vega.Violin
     , module Taiji.Utils.Plot.Vega.Types
     , embedVega
     ) where
@@ -14,6 +15,7 @@ import qualified Text.Blaze.Html5.Attributes as H
 
 import Taiji.Utils.Plot.Vega.Types
 import Taiji.Utils.Plot.Vega.Heatmap
+import Taiji.Utils.Plot.Vega.Violin
 import Taiji.Utils.Plot.Vega.Histogram
 
 embedVega :: String   -- ^ ID

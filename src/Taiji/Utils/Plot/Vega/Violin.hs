@@ -4,14 +4,12 @@
 module Taiji.Utils.Plot.Vega.Violin (violin) where
 
 import Language.Javascript.JMacro
-import qualified Data.Matrix            as M
+import qualified Data.Text as T
 
 import Taiji.Utils.Plot.Vega.Types
-import qualified Taiji.Utils.DataFrame as DF
 
-violin :: DF.DataFrame Double -> Vega
-  [(T.Text, [Double])] -> VLSpec
-violin df = option [jmacroE| {
+violin :: [(T.Text, [Double])] -> Vega
+violin input = option [jmacroE| {
     $schema: "https://vega.github.io/schema/vega/v5.json",
     width: 500,
     padding: 5,
@@ -27,27 +25,23 @@ violin df = option [jmacroE| {
     signals: [
         { name: "fields", value: `fst $ unzip input` },
         { name: "plotWidth", value: 60 },
-        { name: "height", update: "(plotWidth + 10) * length(fields)"},
-        { name: "trim", value: true, bind: {input: "checkbox"} },
-        { name: "bandwidth", value: 0.3, bind: {input: "range", min: 0, max: 1.0, step: 0.01} }
+        { name: "height", update: "(plotWidth + 10) * length(fields)"}
     ],
 
     data: [ {
-        name: "iris",
-        values: `input'``
+        name: "violin",
+        values: `input'`
     }, {
         name: "density",
-        source: "iris",
+        source: "violin",
         transform: [ {
             type: "kde",
             field: "value",
-            groupby: ["key"],
-            bandwidth: {signal: "bandwidth"},
-            extent: {signal: "trim ? null : [0, 8]"}
+            groupby: ["key"]
         } ]
     }, {
         name: "stats",
-        source: "iris",
+        source: "violin",
         transform: [ {
             type: "aggregate",
             groupby: ["key"],
@@ -61,13 +55,13 @@ violin df = option [jmacroE| {
         name: "layout",
         type: "band",
         range: "height",
-        domain: {data: "iris", field: "key"}
+        domain: {data: "violin", field: "key"}
     }, {
         name: "xscale",
         type: "linear",
         range: "width",
         round: true,
-        domain: {data: "iris", field: "value"},
+        domain: {data: "violin", field: "value"},
         zero: true,
         nice: true
     }, {
@@ -78,7 +72,7 @@ violin df = option [jmacroE| {
     }, {
         name: "color",
         type: "ordinal",
-        domain: {data: "iris", field: "key"},
+        domain: {data: "violin", field: "key"},
         range: "category"
     } ],
 
@@ -93,80 +87,80 @@ violin df = option [jmacroE| {
         zindex: 1
     } ],
 
-  "marks": [
+  marks: [
     {
-      "type": "group",
-      "from": {
-        "facet": {
-          "data": "density",
-          "name": "violin",
-          "groupby": "key"
+      type: "group",
+      from: {
+        facet: {
+          data: "density",
+          name: "violin",
+          groupby: "key"
         }
       },
 
-      "encode": {
-        "enter": {
-          "yc": {"scale": "layout", "field": "key", "band": 0.5},
-          "height": {"signal": "plotWidth"},
-          "width": {"signal": "width"}
+      encode: {
+        enter: {
+          yc: {scale: "layout", field: "key", band: 0.5},
+          height: {signal: "plotWidth"},
+          width: {signal: "width"}
         }
       },
 
-      "data": [
+      data: [
         {
-          "name": "summary",
-          "source": "stats",
-          "transform": [
+          name: "summary",
+          source: "stats",
+          transform: [
             {
-              "type": "filter",
-              "expr": "datum.key === parent.key"
+              type: "filter",
+              expr: "datum.key === parent.key"
             }
           ]
         }
       ],
 
-      "marks": [
+      marks: [
         {
-          "type": "area",
-          "from": {"data": "violin"},
-          "encode": {
-            "enter": {
-              "fill": {"scale": "color", "field": {"parent": "key"}}
+          type: "area",
+          from: {data: "violin"},
+          encode: {
+            enter: {
+              fill: {scale: "color", field: {parent: "key"}}
             },
-            "update": {
-              "x": {"scale": "xscale", "field": "value"},
-              "yc": {"signal": "plotWidth / 2"},
-              "height": {"scale": "hscale", "field": "density"}
+            update: {
+              x: {scale: "xscale", field: "value"},
+              yc: {signal: "plotWidth / 2"},
+              height: {scale: "hscale", field: "density"}
             }
           }
         },
         {
-          "type": "rect",
-          "from": {"data": "summary"},
-          "encode": {
-            "enter": {
-              "fill": {"value": "black"},
-              "height": {"value": 2}
+          type: "rect",
+          from: {data: "summary"},
+          encode: {
+            enter: {
+              fill: {value: "black"},
+              height: {value: 2}
             },
-            "update": {
-              "x": {"scale": "xscale", "field": "q1"},
-              "x2": {"scale": "xscale", "field": "q3"},
-              "yc": {"signal": "plotWidth / 2"}
+            update: {
+              x: {scale: "xscale", field: "q1"},
+              x2: {scale: "xscale", field: "q3"},
+              yc: {signal: "plotWidth / 2"}
             }
           }
         },
         {
-          "type": "rect",
-          "from": {"data": "summary"},
-          "encode": {
-            "enter": {
-              "fill": {"value": "black"},
-              "width": {"value": 2},
-              "height": {"value": 8}
+          type: "rect",
+          from: {data: "summary"},
+          encode: {
+            enter: {
+              fill: {value: "black"},
+              width: {value: 2},
+              height: {value: 8}
             },
-            "update": {
-              "x": {"scale": "xscale", "field": "median"},
-              "yc": {"signal": "plotWidth / 2"}
+            update: {
+              x: {scale: "xscale", field: "median"},
+              yc: {signal: "plotWidth / 2"}
             }
           }
         }
@@ -174,5 +168,6 @@ violin df = option [jmacroE| {
     }
   ]
  } |]
-    let input' = flip concatMap input $ \(x,ys) -> flip map ys $ \y ->
-            M.fromList [("key"::T.Text, toJSON x), ("value", toJSON y)]
+  where
+    input' = flip map input $ \(nm,vals) -> jhFromList
+        [("key", [jmacroE| `nm` |]), ("value", [jmacroE| `vals` |])]
