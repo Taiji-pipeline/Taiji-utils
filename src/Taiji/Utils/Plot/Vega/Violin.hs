@@ -169,5 +169,5 @@ violin input = option [jmacroE| {
   ]
  } |]
   where
-    input' = flip map input $ \(nm,vals) -> jhFromList
-        [("key", [jmacroE| `nm` |]), ("value", [jmacroE| `vals` |])]
+    input' = flip concatMap input $ \(nm,vals) -> flip map vals $ \v -> jhFromList
+        [("key", [jmacroE| `nm` |]), ("value", [jmacroE| `v` |])]
