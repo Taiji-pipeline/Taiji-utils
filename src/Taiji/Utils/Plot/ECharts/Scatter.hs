@@ -169,7 +169,7 @@ scatter dat viz = o <> js [jmacro| var !dataset = `dataPoints`; |]
         xAxisIndex: `i::Int`,
         yAxisIndex: `i::Int`,
         type: 'scatterGL',
-        symbolSize: 1.5,
+        symbolSize: 1.8,
         name: `label`,
         data: dataset[`label`]
     } |]
