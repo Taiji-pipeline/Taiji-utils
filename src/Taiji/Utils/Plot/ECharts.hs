@@ -25,9 +25,11 @@ import Taiji.Utils.Plot.ECharts.Types
 embedEchart :: String   -- ^ ID
             -> EChart -> H.Html
 embedEchart eid (EChart opt codes) = H.div $ do
+    H.div H.! H.id (H.toValue $ eid ++ "_config") $ mempty
     H.div H.! H.id (H.toValue eid) H.! H.style "width: 1300px;height:700px;" $ mempty
     H.script H.! H.type_ "text/javascript" $ H.toHtml $ show $ renderJs [jmacro|
-        var myChart = echarts.init(document.getElementById(`eid`));
+        var !myChart = echarts.init(document.getElementById(`eid`));
+        var !config = document.getElementById(`eid++"_config"`);
         `codes`;
         var options = `opt`.reduce(function (res, obj) {
             Object.keys(obj).forEach(function (k) { 
