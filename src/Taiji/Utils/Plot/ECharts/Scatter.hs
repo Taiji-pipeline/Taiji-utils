@@ -286,6 +286,8 @@ scatter3D' dat viz = o <> jsCode
             precision: 2,
             calculable: true,
             right: 10,
+            min: `minimum $ snd $ head viz`,
+            max: `maximum $ snd $ head viz`,
             inRange: {
                 color: ["#50a3ba", "#eac736", "#d94e5d"]
             }
