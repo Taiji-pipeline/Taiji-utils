@@ -208,18 +208,14 @@ scatter3D' dat viz = o <> jsCode
         zipWith (\idx (nm,_) -> printf "<option value=%d>%s</option>" idx nm)
         [3::Int ..] viz
     jsCode = js [jmacro|
-        config.innerHTML = "<select onChange='mkChange(this)'>" + `select`;
-
-        var chart = myChart;
-
-        function !mkChange(sel) {
-            var x = sel.value;
+        function mkChange() {
+            var x = this.value;
             var total = Object.entries(dataset).reduce(function (total, pair) {
                 var col = pair[1].map(function(val,idx) { return val[x]; });
                 return total.concat(col);
             }, []);
 
-            chart.setOption({
+            myChart.setOption({
                 visualMap: {
                     max: Math.max.apply(null, total),
                     min: Math.min.apply(null, total),
@@ -227,6 +223,9 @@ scatter3D' dat viz = o <> jsCode
                 }
             });
         }
+        var slct = document.createElement("select");
+        slct.addEventListener("change", mkChange);
+        slct.innerHTML = `select`;
         var !dataset = `dataPoints`;
     |]
     dataPoints = toJSON $ HM.fromList $ map (first head . unzip) $ groupBy ((==) `on` fst) $
@@ -284,6 +283,7 @@ scatter3D' dat viz = o <> jsCode
     visualMap = [jmacroE| {
             seriesIndex: `[0 .. length dat - 1]`,
             precision: 2,
+            dimension: 3,
             calculable: true,
             right: 10,
             min: `minimum $ snd $ head viz`,
