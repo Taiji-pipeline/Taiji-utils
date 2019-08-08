@@ -210,6 +210,8 @@ scatter3D' dat viz = o <> jsCode
     jsCode = js [jmacro|
         config.innerHTML = "<select onChange='mkChange(this)'>" + `select`;
 
+        var chart = myChart;
+
         function !mkChange(sel) {
             var x = sel.value;
             var total = Object.entries(dataset).reduce(function (total, pair) {
@@ -217,7 +219,7 @@ scatter3D' dat viz = o <> jsCode
                 return total.concat(col);
             }, []);
 
-            myChart.setOption({
+            chart.setOption({
                 visualMap: {
                     max: Math.max.apply(null, total),
                     min: Math.min.apply(null, total),
