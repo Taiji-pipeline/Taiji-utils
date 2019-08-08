@@ -226,6 +226,7 @@ scatter3D' dat viz = o <> jsCode
         var slct = document.createElement("select");
         slct.addEventListener("change", mkChange);
         slct.innerHTML = `select`;
+        config.appendChild(slct);
         var !dataset = `dataPoints`;
     |]
     dataPoints = toJSON $ HM.fromList $ map (first head . unzip) $ groupBy ((==) `on` fst) $
