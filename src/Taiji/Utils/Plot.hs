@@ -2,6 +2,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 module Taiji.Utils.Plot
     ( savePlots
+    , viridis
     ) where
 
 import qualified Text.Blaze.Html5 as H
@@ -30,52 +31,6 @@ mkHtml vls ec = H.docTypeHtml $ do
     vega = sequence_ $ zipWith (\i v -> embedVega ("vega" ++ show i) v) [0 :: Int ..] vls
     echart = sequence_ $ zipWith (\i v -> embedEchart ("echart" ++ show i) v) [0 :: Int ..] ec
 
-{-
-vegaBar :: T.Text   -- ^ title
-        -> T.Text   -- ^ X label
-        -> T.Text   -- ^ Y label
-        -> [(T.Text, Double)]
-        -> VLSpec
-vegaBar t xl yl dat = fromVL $ toVegaLite
-    [ title t
-    , background "white"
-    , dataFromColumns [] $
-        dataColumn xl (Strings xs) $
-        dataColumn yl (Numbers ys) []
-    , mark Bar []
-    , height 300
-    , enc ]
-  where
-    (xs, ys) = unzip dat
-    enc = encoding $
-        position X [PName xl, PmType Nominal] $
-        position Y [PName yl, PmType Quantitative] []
-
-vegaStackBar :: T.Text   -- ^ title
-             -> T.Text   -- ^ X label
-             -> T.Text   -- ^ Y label
-             -> [T.Text]  -- ^ X data
-             -> [(T.Text, [Double])]  -- ^ Y data
-             -> VLSpec
-vegaStackBar t xl yl xdat ydat = 
-    let dat = flip concatMap ydat $ \(c, vs) -> flip map (zip xdat vs) $ \(x, y) ->
-            M.fromList [(xl, toJSON x), (yl, toJSON y), ("category", toJSON c)]
-    in [aesonQQ|
-      { "$schema": "https://vega.github.io/schema/vega-lite/v3.json",
-        "title": #{t},
-        "data": {
-          "values": #{dat}
-        },
-        "mark": "bar",
-        "encoding": {
-          "x": {"field": #{xl}, "type": "nominal"},
-          "y": {
-            "aggregate": "sum",
-            "field": #{yl},
-            "type": "quantitative",
-            "axis": { "title": #{yl} }
-          },
-          "color": {"field": "category", "type": "nominal"}
-        }
-      } |]
-      -}
+viridis :: [String]
+viridis = ["#440154", "#482173", "#433E85", "#38598C", "#2D708E",
+    "#25858E", "#1E9B8A", "#2BB07F", "#51C56A", "#85D54A", "#C2DF23", "#FDE725"]
