@@ -11,6 +11,7 @@ import Taiji.Utils.DataFrame hiding (zip, unzip)
 
 heatmap :: DataFrame Double -> EChart
 heatmap df = option [jmacroE| {
+    grid: { containLabel: true },
     xAxis: {
         type: "category",
         data: `colNames df`,

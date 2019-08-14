@@ -6,6 +6,7 @@ module Taiji.Utils.Plot.ECharts.Scatter
     , scatter3D
     , scatter3D'
     , scatter
+    , scatter'
     ) where
 
 import Language.Javascript.JMacro
@@ -171,7 +172,7 @@ scatter dat viz = o <> js [jmacro| var !dataset = `dataPoints`; |]
         xAxisIndex: `i::Int`,
         yAxisIndex: `i::Int`,
         type: 'scatterGL',
-        symbolSize: 1.8,
+        symbolSize: 2,
         name: `label`,
         data: dataset[`label`]
     } |]
@@ -292,4 +293,46 @@ scatter3D' dat viz = o <> jsCode
             inRange: {
                 color: ["#50a3ba", "#eac736", "#d94e5d"]
             }
+    } |]
+
+scatter' :: [(String, [Point2D])] -> EChart
+scatter' dat = o <> js [jmacro| var !dataset = `dataPoints`; |]
+  where
+    dataPoints = toJSON $ HM.fromList $
+        map (second (map (\(a, b) -> [toJSON a, toJSON b]))) dat
+    o = option [jmacroE| {
+        grid: {
+            height: 500,
+            width: 500,
+            left: 50,
+            containLabel: true,
+            show:true
+        },
+        xAxis: {
+            gridIndex: 0,
+            axisTick: {show:false},
+            axisLabel: {show:false},
+            splitLine: {show:false},
+            axisLine: {onZero: false},
+            name: "dim1"
+        },
+        yAxis: {
+            gridIndex: 0,
+            axisTick: {show:false},
+            axisLabel: {show:false},
+            splitLine: {show:false},
+            axisLine: {onZero: false},
+            name: "dim2"
+        }, 
+        series: `map (mkSeries 0) dat`,
+        legend: { data: `map fst dat`, orient: 'vertical', top: 50, height: 500 },
+        color: `defColors`
+    } |]
+    mkSeries i (label, _) = [jmacroE| {
+        xAxisIndex: `i::Int`,
+        yAxisIndex: `i::Int`,
+        type: 'scatterGL',
+        symbolSize: 2,
+        name: `label`,
+        data: dataset[`label`]
     } |]

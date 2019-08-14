@@ -11,19 +11,7 @@ import qualified Taiji.Utils.DataFrame as DF
 
 stackBar :: DF.DataFrame Double -> EChart
 stackBar df = option [jmacroE| {
-    toolbox: {
-        feature: {
-            dataZoom: {},
-            restore: {},
-            saveAsImage: {}
-        }
-    },
-    grid: {
-        left: "3%",
-        right: "4%",
-        bottom: "3%",
-        containLabel: true
-    },
+    grid: { containLabel: true },
     tooltip: {
         trigger: "axis",
         axisPointer : { type : "shadow" }
