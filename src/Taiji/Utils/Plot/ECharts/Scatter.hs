@@ -302,8 +302,8 @@ scatter' dat = o <> js [jmacro| var !dataset = `dataPoints`; |]
         map (second (map (\(a, b) -> [toJSON a, toJSON b]))) dat
     o = option [jmacroE| {
         grid: {
-            height: 500,
-            width: 500,
+            height: 600,
+            width: 600,
             left: 50,
             containLabel: true,
             show:true
@@ -325,7 +325,7 @@ scatter' dat = o <> js [jmacro| var !dataset = `dataPoints`; |]
             name: "dim2"
         }, 
         series: `map (mkSeries 0) dat`,
-        legend: { data: `map fst dat`, orient: 'vertical', top: 50, height: 500 },
+        legend: { data: `map fst dat`, orient: 'vertical', top: 50, height: 600, left: 700 },
         color: `defColors`
     } |]
     mkSeries i (label, _) = [jmacroE| {
