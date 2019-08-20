@@ -6,14 +6,13 @@ module Taiji.Utils.Plot.ECharts.PunchChart
     , punchChart2 ) where
 
 import Language.Javascript.JMacro
-import Data.List (groupBy)
 import qualified Data.Matrix            as M
 
 import Taiji.Utils.Plot.ECharts.Types
 
-import Taiji.Utils.DataFrame hiding (zip, unzip)
+import qualified Taiji.Utils.DataFrame as DF
 
-punchChart :: [(String, DataFrame (Double, Double))] -> EChart
+punchChart :: [(String, DF.DataFrame (Double, Double))] -> EChart
 punchChart dat = baseOption <> option [jmacroE| { options: `map mkPunchChartOpt dfs` } |]
   where
     (nms, dfs) = unzip dat
@@ -124,17 +123,17 @@ punchChart dat = baseOption <> option [jmacroE| { options: `map mkPunchChartOpt 
         }
     } |]
 
-mkPunchChartOpt :: DataFrame (Double, Double) -> JExpr
-mkPunchChartOpt df | isEmpty df = [jmacroE| {} |]
+mkPunchChartOpt :: DF.DataFrame (Double, Double) -> JExpr
+mkPunchChartOpt df | DF.isEmpty df = [jmacroE| {} |]
                    | otherwise = option
   where
-    df' = reorderColumns (orderByCluster fst) $ reorderRows (orderByCluster fst) df
+    df' = DF.reorderColumns (DF.orderByCluster fst) $ DF.reorderRows (DF.orderByCluster fst) df
     dat = zipWith3 (\[j,i] x y -> [i, j, x, y]) idx xs ys
-    (ys, xs) = unzip $ concat $ M.toLists $ _dataframe_data df'
+    (ys, xs) = unzip $ concat $ M.toLists $ DF._dataframe_data df'
     min' = minimum xs
     max' = maximum xs
-    nrow = fromIntegral $ M.rows $ _dataframe_data df'
-    ncol = fromIntegral $ M.cols $ _dataframe_data df'
+    nrow = fromIntegral $ M.rows $ DF._dataframe_data df'
+    ncol = fromIntegral $ M.cols $ DF._dataframe_data df'
     idx = sequence [[nrow - 1, nrow -2 .. 0], [0 .. ncol - 1]]
     option = [jmacroE| {
         series: [{
@@ -146,8 +145,8 @@ mkPunchChartOpt df | isEmpty df = [jmacroE| {} |]
             min: `if null ys then 0 else minimum ys`,
             max: `if null ys then 0 else maximum ys`
         },
-        xAxis: { data: `colNames df'` },
-        yAxis: { data: `reverse $ rowNames df'` }
+        xAxis: { data: `DF.colNames df'` },
+        yAxis: { data: `reverse $ DF.rowNames df'` }
     } |]
 
 mkTimelineItem :: String -> JExpr
@@ -166,7 +165,7 @@ linearMap (lo, hi) xs = map f xs
     max' = maximum xs
 {-# INLINE linearMap #-}
 
-punchChart2 :: DataFrame Double -> EChart
+punchChart2 :: DF.DataFrame Double -> EChart
 punchChart2 df = option [jmacroE| {
     series: [{
         name: "Punch Card",
@@ -181,7 +180,7 @@ punchChart2 df = option [jmacroE| {
     }],
     xAxis: {
         type: "category",
-        data: `colNames df`,
+        data: `DF.colNames df`,
         axisLine: { show: false },
         splitLine: {
             show: true,
@@ -193,7 +192,7 @@ punchChart2 df = option [jmacroE| {
     },
     yAxis: {
         type: "category",
-        data: `rowNames df`,
+        data: `DF.rowNames df`,
         axisLine: { show: false },
         splitLine: {
             show: true,
@@ -240,9 +239,9 @@ punchChart2 df = option [jmacroE| {
     } |]
   where
     dat = zipWith (\[j,i] x -> [i, j, x, x]) idx values
-    values = concat $ M.toLists $ _dataframe_data df
+    values = concat $ M.toLists $ DF._dataframe_data df
     min' = minimum values
     max' = maximum values
-    nrow = fromIntegral $ M.rows $ _dataframe_data df
-    ncol = fromIntegral $ M.cols $ _dataframe_data df
+    nrow = fromIntegral $ M.rows $ DF._dataframe_data df
+    ncol = fromIntegral $ M.cols $ DF._dataframe_data df
     idx = sequence [[nrow - 1, nrow -2 .. 0], [0 .. ncol - 1]]

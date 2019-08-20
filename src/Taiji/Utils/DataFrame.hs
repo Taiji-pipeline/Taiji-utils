@@ -13,6 +13,7 @@ module Taiji.Utils.DataFrame
     , ReodrderFn
     , reorderColumns
     , reorderRows
+    , Taiji.Utils.DataFrame.map
     , mapRows
     , mapCols
     , filterRows
@@ -70,25 +71,25 @@ instance DataFrameIndex Int where
     csub df idx = df
         { _dataframe_col_names = V.fromList col_names
         , _dataframe_col_names_idx = HM.fromList $ L.zip col_names [0..]
-        , _dataframe_data = M.fromColumns $ map (_dataframe_data df `M.takeColumn`) idx }
+        , _dataframe_data = M.fromColumns $ L.map (_dataframe_data df `M.takeColumn`) idx }
       where
-        col_names = map (_dataframe_col_names df V.!) idx
+        col_names = L.map (_dataframe_col_names df V.!) idx
     rsub df idx = df
         { _dataframe_row_names = V.fromList row_names
         , _dataframe_row_names_idx = HM.fromList $ L.zip row_names [0..]
-        , _dataframe_data = M.fromRows $ map (_dataframe_data df `M.takeRow`) idx }
+        , _dataframe_data = M.fromRows $ L.map (_dataframe_data df `M.takeRow`) idx }
       where
-        row_names = map (_dataframe_row_names df V.!) idx
+        row_names = L.map (_dataframe_row_names df V.!) idx
 
 instance DataFrameIndex T.Text where
     csub df idx = csub df idx'
       where
-        idx' = map (\i -> HM.lookupDefault
+        idx' = L.map (\i -> HM.lookupDefault
             (error $ "index doesn't exist: " ++ T.unpack i) i $
             _dataframe_col_names_idx df) idx
     rsub df idx = rsub df idx'
       where
-        idx' = map (\i -> HM.lookupDefault
+        idx' = L.map (\i -> HM.lookupDefault
             (error $ "index doesn't exist: " ++ T.unpack i) i $
             _dataframe_row_names_idx df) idx
 
@@ -99,17 +100,20 @@ isEmpty df = r == 0 || c == 0
     (r,c) = M.dim $ _dataframe_data df
 
 cbind :: [DataFrame a] -> DataFrame a
-cbind dfs | allTheSame (map _dataframe_row_names dfs) = DataFrame
+cbind dfs | allTheSame (L.map _dataframe_row_names dfs) = DataFrame
     { _dataframe_row_names = row_names
     , _dataframe_row_names_idx = HM.fromList $ L.zip (V.toList row_names) [0..]
     , _dataframe_col_names = col_names
     , _dataframe_col_names_idx = HM.fromList $ L.zip (V.toList col_names) [0..]
-    , _dataframe_data = M.fromBlocks undefined [map _dataframe_data dfs] }
+    , _dataframe_data = M.fromBlocks undefined [L.map _dataframe_data dfs] }
           | otherwise = error "Row names differ"
   where
     allTheSame xs = all (== head xs) (tail xs)
-    row_names = V.concat $ map (_dataframe_row_names) dfs
-    col_names = V.concat $ map (_dataframe_col_names) dfs
+    row_names = V.concat $ L.map (_dataframe_row_names) dfs
+    col_names = V.concat $ L.map (_dataframe_col_names) dfs
+
+map :: (a -> b) -> DataFrame a -> DataFrame b
+map f df = df{_dataframe_data = M.map f $ _dataframe_data df}
 
 zip :: DataFrame a -> DataFrame b -> DataFrame (a,b)
 zip df1 df2
@@ -135,11 +139,11 @@ colNames DataFrame{..} = V.toList _dataframe_col_names
 
 mapRows :: (V.Vector a -> V.Vector b) -> DataFrame a -> DataFrame b
 mapRows fn df = df
-    { _dataframe_data = M.fromRows $ map fn $ M.toRows $ _dataframe_data df }
+    { _dataframe_data = M.fromRows $ L.map fn $ M.toRows $ _dataframe_data df }
 
 mapCols :: (V.Vector a -> V.Vector b) -> DataFrame a -> DataFrame b
 mapCols fn df = df
-    { _dataframe_data = M.fromColumns $ map fn $ M.toColumns $ _dataframe_data df }
+    { _dataframe_data = M.fromColumns $ L.map fn $ M.toColumns $ _dataframe_data df }
 
 filterRows :: (T.Text -> V.Vector a -> Bool) -> DataFrame a -> DataFrame a
 filterRows fn df = df
@@ -176,9 +180,9 @@ reorderColumns fn df
 
 writeTable :: FilePath -> (a -> T.Text) -> DataFrame a -> IO ()
 writeTable output f DataFrame{..} = T.writeFile output $ T.unlines $
-    map (T.intercalate "\t") $ ("" : V.toList _dataframe_col_names) :
+    L.map (T.intercalate "\t") $ ("" : V.toList _dataframe_col_names) :
     L.zipWith (:) (V.toList _dataframe_row_names)
-    ((map . map) f $ M.toLists _dataframe_data)
+    ((L.map . L.map) f $ M.toLists _dataframe_data)
 
 -- | Read data, normalize and calculate p-values.
 readData :: FilePath   -- ^ PageRank
@@ -190,10 +194,10 @@ readData input1 input2 = do
     -- Read expression profile and apply "ihs" transformation
     expr <- (fmap ihs' . readTSV) <$> B.readFile input2
 
-    let (labels, xs) = L.unzip $ map L.unzip $ groupBy ((==) `on` (fst.fst)) $ sort $
+    let (labels, xs) = L.unzip $ L.map L.unzip $ groupBy ((==) `on` (fst.fst)) $ sort $
             HM.toList $ HM.intersectionWith (,) rank expr
-        rowlab = map (T.pack . B.unpack . CI.original) $ fst $ L.unzip $ map head labels
-        collab = map (T.pack . B.unpack . CI.original) $ snd $ L.unzip $ head labels
+        rowlab = L.map (T.pack . B.unpack . CI.original) $ fst $ L.unzip $ L.map head labels
+        collab = L.map (T.pack . B.unpack . CI.original) $ snd $ L.unzip $ head labels
     return $ mkDataFrame rowlab collab xs
 
 readTSV :: B.ByteString -> HM.HashMap (CI.CI B.ByteString, CI.CI B.ByteString) Double
@@ -207,9 +211,9 @@ readTable :: FilePath -> IO (DataFrame Double)
 readTable input = do
     (header:content) <- B.lines <$> B.readFile input
     let samples = tail $ B.split '\t' header
-        (rows, dat) = L.unzip $ map ((\(x:xs) ->
-            (T.pack $ B.unpack x, map readDouble xs)) . B.split '\t') content
-    return $ mkDataFrame rows (map (T.pack . B.unpack) samples) dat
+        (rows, dat) = L.unzip $ L.map ((\(x:xs) ->
+            (T.pack $ B.unpack x, L.map readDouble xs)) . B.split '\t') content
+    return $ mkDataFrame rows (L.map (T.pack . B.unpack) samples) dat
 
     {-
 orderByName :: [T.Text] -> ReodrderFn a
