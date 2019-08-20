@@ -4,13 +4,11 @@
 module Taiji.Utils.Plot.ECharts.Boxplot (boxplot) where
 
 import Language.Javascript.JMacro
-import qualified Data.Matrix            as M
 import Statistics.Quantile
 import qualified Data.Text as T
 import qualified Data.Vector.Unboxed as U
 
 import Taiji.Utils.Plot.ECharts.Types
-import Taiji.Utils.DataFrame hiding (zip, unzip)
 
 boxplot :: [(T.Text, [Double])] -> EChart
 boxplot input = option [jmacroE| {
@@ -21,6 +19,7 @@ boxplot input = option [jmacroE| {
         axisLabel: { rotate: 45 }
     },
     yAxis: {
+        axisLine: {onZero: false},
         type: "value"
     },
     series: [{
@@ -31,4 +30,12 @@ boxplot input = option [jmacroE| {
     } |]
   where
     (names, dat) = unzip input
-    dat' = flip map dat $ \xs -> quantiles def [0..4] 4 $ U.fromList xs
+    dat' = flip map dat $ \xs -> range $ U.fromList xs
+
+range :: U.Vector Double -> [Double]
+range xs = [lower, q1, q2, q3, upper]
+  where
+    lower = q1 - 1.5 * iqr
+    upper = q3 + 1.5 * iqr
+    iqr = q3 - q1
+    [q1, q2, q3] = quantiles def [1, 2, 3] 4 xs
