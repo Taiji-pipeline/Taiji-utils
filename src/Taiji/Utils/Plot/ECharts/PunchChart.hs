@@ -127,7 +127,7 @@ mkPunchChartOpt :: DF.DataFrame (Double, Double) -> JExpr
 mkPunchChartOpt df | DF.isEmpty df = [jmacroE| {} |]
                    | otherwise = option
   where
-    df' = DF.reorderColumns (DF.orderByCluster fst) $ DF.reorderRows (DF.orderByCluster fst) df
+    df' = DF.reorderColumns (DF.orderByHClust fst) $ DF.reorderRows (DF.orderByHClust fst) df
     dat = zipWith3 (\[j,i] x y -> [i, j, x, y]) idx xs ys
     (ys, xs) = unzip $ concat $ M.toLists $ DF._dataframe_data df'
     min' = minimum xs

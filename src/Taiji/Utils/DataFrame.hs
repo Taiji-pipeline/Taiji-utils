@@ -22,7 +22,8 @@ module Taiji.Utils.DataFrame
     , readData
     , writeTable
     , readTable
-    , orderByCluster
+    , orderByHClust
+    , orderByKMeans
     , orderDataFrame
     
     , pearson
@@ -38,6 +39,8 @@ import qualified Data.CaseInsensitive   as CI
 import           Data.Function          (on)
 import           Data.List as L
 import AI.Clustering.Hierarchical hiding (normalize)
+import AI.Clustering.KMeans
+import Data.Maybe
 import qualified Data.Matrix            as M
 import qualified Data.Vector            as V
 import qualified Data.HashMap.Strict    as HM
@@ -234,10 +237,14 @@ orderByName prefix = sortBy $ \(a,_) (b,_) ->
         go _ _ = Nothing
         -}
 
-orderByCluster :: (a -> Double) -> ReodrderFn a 
-orderByCluster f xs = flatten $ hclust Ward (V.fromList xs) dist
+orderByHClust :: (a -> Double) -> ReodrderFn a 
+orderByHClust f xs = flatten $ hclust Ward (V.fromList xs) dist
   where
     dist = euclidean `on` V.map f . snd
+
+orderByKMeans :: Int -> (a -> Double) -> ReodrderFn a 
+orderByKMeans k f xs = concat $ fromJust $ clusters $
+    kmeansBy k (V.fromList xs) (V.convert . V.map f . snd) defaultKMeansOpts
 
 pearson :: DataFrame Double -> DataFrame Double
 pearson DataFrame{..} = DataFrame _dataframe_row_names _dataframe_row_names_idx 
@@ -250,4 +257,4 @@ spearman DataFrame{..} = DataFrame _dataframe_row_names _dataframe_row_names_idx
     toRowLists $ spearmanMatByRow $ fromRowLists $ M.toLists _dataframe_data 
 
 orderDataFrame :: (a -> Double) -> DataFrame a -> DataFrame a
-orderDataFrame f = reorderColumns (orderByCluster f) . reorderRows (orderByCluster f)
+orderDataFrame f = reorderColumns (orderByHClust f) . reorderRows (orderByHClust f)
