@@ -38,6 +38,7 @@ import Bio.Utils.Misc (readDouble)
 import Data.BBI.BigBed (BBedFile)
 import           Data.Aeson
 import Data.Char
+import qualified Data.Text as T
 import Lens.Micro ((^.))
 import qualified Data.ByteString.Char8  as B
 import qualified Data.HashMap.Strict as M
@@ -54,16 +55,17 @@ data TaijiConfig = TaijiConfig
     { _taiji_output_dir   :: Directory
     , _taiji_input        :: FilePath
     , _taiji_genome       :: Maybe FilePath
-    , _taiji_bwa_index    :: Maybe FilePath
-    , _taiji_star_index   :: Maybe FilePath
     , _taiji_annotation   :: Maybe FilePath
-    , _taiji_rsem_index   :: Maybe FilePath
-    , _taiji_genome_index :: Maybe FilePath
     , _taiji_motif_file   :: Maybe FilePath
     , _taiji_tmp_dir      :: Maybe FilePath
     , _taiji_external_network :: Maybe FilePath
     , _taiji_cluster_resolution :: Maybe Double
     , _taiji_blacklist :: Maybe FilePath
+    , _taiji_callpeak_fdr :: Maybe Double
+    , _taiji_bwa_index    :: FilePath
+    , _taiji_star_index   :: FilePath
+    , _taiji_genome_index :: FilePath
+    , _taiji_rsem_index   :: FilePath
     } deriving (Generic)
 
 instance Binary TaijiConfig
@@ -77,8 +79,24 @@ instance ToJSON TaijiConfig where
 
 -- Drop "_taiji_" prefix
 instance FromJSON TaijiConfig where
-    parseJSON = genericParseJSON defaultOptions
-        { fieldLabelModifier = drop 7 }
+    parseJSON = withObject "TaijiConfig" $ \v -> do
+        let String dir = M.lookupDefault (error "no output_dir") "output_dir" v
+            genomeDir = T.unpack dir ++ "/GENOME/"
+        TaijiConfig
+            <$> v .: "output_dir"
+            <*> v .: "input"
+            <*> v .: "genome"
+            <*> v .: "annotation"
+            <*> v .: "motif_file"
+            <*> v .: "tmp_dir"
+            <*> v .: "external_network"
+            <*> v .: "cluster_resolution"
+            <*> v .: "blacklist"
+            <*> v .: "callpeak_fdr"
+            <*> v .:? "bwa_index" .!= (genomeDir ++ "BWA_index/")
+            <*> v .:? "star_index" .!= (genomeDir ++ "STAR_index/")
+            <*> v .:? "genome_index" .!= (genomeDir ++ "genome.index")
+            <*> v .:? "rsem_index" .!= (genomeDir ++ "RSEM_index/")
 
 type GeneName = CI B.ByteString
 type Promoter = BEDExt BED3 GeneName
