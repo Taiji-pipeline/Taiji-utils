@@ -7,6 +7,7 @@ module Taiji.Utils.DataFrame
     , mkDataFrame
     , isEmpty
     , Taiji.Utils.DataFrame.transpose
+    , rbind
     , cbind
     , rowNames
     , colNames
@@ -61,9 +62,9 @@ mkDataFrame :: [T.Text]     -- ^ row names
             -> DataFrame a
 mkDataFrame r c d = DataFrame
     { _dataframe_row_names = V.fromList r
-    , _dataframe_row_names_idx = HM.fromList $ L.zip r [0..]
+    , _dataframe_row_names_idx = HM.fromListWith (error "duplicated row names") $ L.zip r [0..]
     , _dataframe_col_names = V.fromList c
-    , _dataframe_col_names_idx = HM.fromList $ L.zip c [0..]
+    , _dataframe_col_names_idx = HM.fromListWith (error "duplicated col names") $ L.zip c [0..]
     , _dataframe_data = M.fromLists d }
 
 class DataFrameIndex i where
@@ -102,17 +103,24 @@ isEmpty df = r == 0 || c == 0
   where
     (r,c) = M.dim $ _dataframe_data df
 
-cbind :: [DataFrame a] -> DataFrame a
-cbind dfs | allTheSame (L.map _dataframe_row_names dfs) = DataFrame
+rbind :: [DataFrame a] -> DataFrame a
+rbind dfs | allTheSame (L.map _dataframe_col_names dfs) = DataFrame
     { _dataframe_row_names = row_names
     , _dataframe_row_names_idx = HM.fromList $ L.zip (V.toList row_names) [0..]
-    , _dataframe_col_names = col_names
+    , _dataframe_data = M.fromBlocks undefined $ L.map (return . _dataframe_data) dfs }
+          | otherwise = error "Columns names differ"
+  where
+    allTheSame xs = all (== head xs) (tail xs)
+    row_names = V.concat $ L.map (_dataframe_row_names) dfs
+
+cbind :: [DataFrame a] -> DataFrame a
+cbind dfs | allTheSame (L.map _dataframe_row_names dfs) = DataFrame
+    { _dataframe_col_names = col_names
     , _dataframe_col_names_idx = HM.fromList $ L.zip (V.toList col_names) [0..]
     , _dataframe_data = M.fromBlocks undefined [L.map _dataframe_data dfs] }
           | otherwise = error "Row names differ"
   where
     allTheSame xs = all (== head xs) (tail xs)
-    row_names = V.concat $ L.map (_dataframe_row_names) dfs
     col_names = V.concat $ L.map (_dataframe_col_names) dfs
 
 map :: (a -> b) -> DataFrame a -> DataFrame b
