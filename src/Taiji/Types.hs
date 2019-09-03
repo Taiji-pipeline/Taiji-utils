@@ -5,6 +5,10 @@
 {-# LANGUAGE RecordWildCards #-}
 module Taiji.Types
     ( TaijiConfig(..)
+    , fetchGenome
+    , fetchAnnotation
+    , fetchMotif
+
     , GeneName
     , Promoter
     , RegDomain
@@ -34,6 +38,7 @@ module Taiji.Types
 import           Bio.Data.Bed
 import           Bio.Pipeline.Instances ()
 import           Bio.Pipeline.Utils     (Directory)
+import Bio.Pipeline.Download (getUrl)
 import Bio.Utils.Misc (readDouble)
 import Data.BBI.BigBed (BBedFile)
 import           Data.Aeson
@@ -54,6 +59,7 @@ import Data.Double.Conversion.ByteString (toShortest)
 data TaijiConfig = TaijiConfig
     { _taiji_output_dir   :: Directory
     , _taiji_input        :: FilePath
+    , _taiji_assembly     :: Maybe String
     , _taiji_genome       :: Maybe FilePath
     , _taiji_annotation   :: Maybe FilePath
     , _taiji_motif_file   :: Maybe FilePath
@@ -82,21 +88,57 @@ instance FromJSON TaijiConfig where
     parseJSON = withObject "TaijiConfig" $ \v -> do
         let String dir = M.lookupDefault (error "no output_dir") "output_dir" v
             genomeDir = T.unpack dir ++ "/GENOME/"
+            assembly = case M.lookup "assembly" v of
+                Just (String x) -> Just $ T.unpack x
+                _ -> Nothing
         TaijiConfig
             <$> v .: "output_dir"
             <*> v .: "input"
-            <*> v .: "genome"
-            <*> v .: "annotation"
-            <*> v .: "motif_file"
-            <*> v .: "tmp_dir"
-            <*> v .: "external_network"
-            <*> v .: "cluster_resolution"
-            <*> v .: "blacklist"
-            <*> v .: "callpeak_fdr"
+            <*> v .:? "assembly"
+            <*> v .:? "genome" .!= fmap (\x -> genomeDir ++ x ++ ".fasta") assembly
+            <*> v .:? "annotation" .!= fmap (\x -> genomeDir ++ x ++ ".gtf") assembly
+            <*> v .:? "motif_file" .!= fmap (\x -> genomeDir ++ x ++ ".meme") assembly
+            <*> v .:? "tmp_dir"
+            <*> v .:? "external_network"
+            <*> v .:? "cluster_resolution"
+            <*> v .:? "blacklist"
+            <*> v .:? "callpeak_fdr"
             <*> v .:? "bwa_index" .!= (genomeDir ++ "BWA_index/")
             <*> v .:? "star_index" .!= (genomeDir ++ "STAR_index/")
             <*> v .:? "genome_index" .!= (genomeDir ++ "genome.index")
             <*> v .:? "rsem_index" .!= (genomeDir ++ "RSEM_index/")
+
+fetchGenome :: FilePath -> String -> IO ()
+fetchGenome output assembly 
+    | assembly' == "GRCH38" || assembly' == "HG38" = getUrl output 
+        "ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_31/GRCh38.primary_assembly.genome.fa.gz" True
+    | assembly' == "GRCM38" || assembly' == "MM10" = getUrl output 
+        "ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M22/GRCm38.primary_assembly.genome.fa.gz" True
+    | assembly' == "MM_TEST" = getUrl output
+        "ftp://hgdownload.soe.ucsc.edu/goldenPath/mm10/chromosomes/chr19.fa.gz" True
+    | otherwise = error "Unknown assembly"
+  where
+    assembly' = map toUpper assembly
+
+fetchAnnotation :: FilePath -> String -> IO ()
+fetchAnnotation output assembly
+    | assembly' == "GRCH38" || assembly' == "HG38" = getUrl output 
+        "ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_31/gencode.v31.annotation.gtf.gz" True
+    | assembly' `elem` ["GRCM38", "MM10", "MM_TEST"] = getUrl output 
+        "ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M22/gencode.vM22.annotation.gtf.gz" True
+    | otherwise = error "Unknown assembly"
+  where
+    assembly' = map toUpper assembly
+
+fetchMotif :: FilePath -> String -> IO ()
+fetchMotif output assembly
+    | assembly' == "GRCH38" || assembly' == "HG38" = getUrl output 
+        "https://taiji-pipeline.github.io/documentation/_downloads/cisBP_human.meme" False
+    | assembly' `elem` ["GRCM38", "MM10", "MM_TEST"] = getUrl output 
+        "https://taiji-pipeline.github.io/documentation/_downloads/cisBP_mouse.meme" False
+    | otherwise = error "Unknown assembly"
+  where
+    assembly' = map toUpper assembly
 
 type GeneName = CI B.ByteString
 type Promoter = BEDExt BED3 GeneName
