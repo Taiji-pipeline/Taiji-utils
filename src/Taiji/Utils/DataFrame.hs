@@ -5,6 +5,7 @@ module Taiji.Utils.DataFrame
     ( DataFrame(..)
     , DataFrameIndex(..)
     , mkDataFrame
+    , fromMatrix
     , isEmpty
     , Taiji.Utils.DataFrame.transpose
     , rbind
@@ -62,10 +63,21 @@ mkDataFrame :: [T.Text]     -- ^ row names
             -> DataFrame a
 mkDataFrame r c d = DataFrame
     { _dataframe_row_names = V.fromList r
-    , _dataframe_row_names_idx = HM.fromListWith (error "duplicated row names") $ L.zip r [0..]
+    , _dataframe_row_names_idx = HM.fromList $ L.zip r [0..]
     , _dataframe_col_names = V.fromList c
-    , _dataframe_col_names_idx = HM.fromListWith (error "duplicated col names") $ L.zip c [0..]
+    , _dataframe_col_names_idx = HM.fromList $ L.zip c [0..]
     , _dataframe_data = M.fromLists d }
+
+fromMatrix :: [T.Text]     -- ^ row names
+           -> [T.Text]     -- ^ col names
+           -> M.Matrix a  -- ^ data
+           -> DataFrame a
+fromMatrix r c mat = DataFrame
+    { _dataframe_row_names = V.fromList r
+    , _dataframe_row_names_idx = HM.fromList $ L.zip r [0..]
+    , _dataframe_col_names = V.fromList c
+    , _dataframe_col_names_idx = HM.fromList $ L.zip c [0..]
+    , _dataframe_data = mat }
 
 class DataFrameIndex i where
     csub :: DataFrame a -> [i] -> DataFrame a
@@ -104,7 +116,7 @@ isEmpty df = r == 0 || c == 0
     (r,c) = M.dim $ _dataframe_data df
 
 rbind :: [DataFrame a] -> DataFrame a
-rbind dfs | allTheSame (L.map _dataframe_col_names dfs) = DataFrame
+rbind dfs | allTheSame (L.map _dataframe_col_names dfs) = (head dfs)
     { _dataframe_row_names = row_names
     , _dataframe_row_names_idx = HM.fromList $ L.zip (V.toList row_names) [0..]
     , _dataframe_data = M.fromBlocks undefined $ L.map (return . _dataframe_data) dfs }
@@ -114,7 +126,7 @@ rbind dfs | allTheSame (L.map _dataframe_col_names dfs) = DataFrame
     row_names = V.concat $ L.map (_dataframe_row_names) dfs
 
 cbind :: [DataFrame a] -> DataFrame a
-cbind dfs | allTheSame (L.map _dataframe_row_names dfs) = DataFrame
+cbind dfs | allTheSame (L.map _dataframe_row_names dfs) = (head dfs)
     { _dataframe_col_names = col_names
     , _dataframe_col_names_idx = HM.fromList $ L.zip (V.toList col_names) [0..]
     , _dataframe_data = M.fromBlocks undefined [L.map _dataframe_data dfs] }
