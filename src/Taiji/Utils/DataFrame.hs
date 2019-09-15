@@ -24,6 +24,7 @@ module Taiji.Utils.DataFrame
     , readData
     , writeTable
     , readTable
+    , readTableWith
     , orderByHClust
     , orderByKMeans
     , orderDataFrame
@@ -82,6 +83,7 @@ fromMatrix r c mat = DataFrame
 class DataFrameIndex i where
     csub :: DataFrame a -> [i] -> DataFrame a
     rsub :: DataFrame a -> [i] -> DataFrame a
+    (!)  :: DataFrame a -> (i,i) -> a
 
 instance DataFrameIndex Int where
     csub df idx = df
@@ -96,6 +98,7 @@ instance DataFrameIndex Int where
         , _dataframe_data = M.fromRows $ L.map (_dataframe_data df `M.takeRow`) idx }
       where
         row_names = L.map (_dataframe_row_names df V.!) idx
+    (!) df (i,j) = _dataframe_data df M.! (i,j)
 
 instance DataFrameIndex T.Text where
     csub df idx = csub df idx'
@@ -108,7 +111,12 @@ instance DataFrameIndex T.Text where
         idx' = L.map (\i -> HM.lookupDefault
             (error $ "index doesn't exist: " ++ T.unpack i) i $
             _dataframe_row_names_idx df) idx
-
+    (!) df (a,b) = (!) df (i,j)
+      where
+        i = HM.lookupDefault (error $ "index doesn't exist: " ++ T.unpack a) a $
+            _dataframe_row_names_idx df
+        j = HM.lookupDefault (error $ "index doesn't exist: " ++ T.unpack b) b $
+            _dataframe_col_names_idx df
 
 isEmpty :: DataFrame a -> Bool
 isEmpty df = r == 0 || c == 0
@@ -231,11 +239,14 @@ readTSV input = HM.fromList $ concatMap (f . B.split '\t') content
     samples = tail $ B.split '\t' header
 
 readTable :: FilePath -> IO (DataFrame Double)
-readTable input = do
+readTable = readTableWith readDouble
+
+readTableWith :: (B.ByteString -> a) -> FilePath -> IO (DataFrame a)
+readTableWith f input = do
     (header:content) <- B.lines <$> B.readFile input
     let samples = tail $ B.split '\t' header
         (rows, dat) = L.unzip $ L.map ((\(x:xs) ->
-            (T.pack $ B.unpack x, L.map readDouble xs)) . B.split '\t') content
+            (T.pack $ B.unpack x, L.map f xs)) . B.split '\t') content
     return $ mkDataFrame rows (L.map (T.pack . B.unpack) samples) dat
 
     {-
