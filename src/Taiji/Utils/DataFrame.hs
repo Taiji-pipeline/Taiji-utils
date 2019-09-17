@@ -82,7 +82,9 @@ fromMatrix r c mat = DataFrame
 
 class DataFrameIndex i where
     csub :: DataFrame a -> [i] -> DataFrame a
+    cindex :: DataFrame a -> i -> V.Vector a
     rsub :: DataFrame a -> [i] -> DataFrame a
+    rindex :: DataFrame a -> i -> V.Vector a
     (!)  :: DataFrame a -> (i,i) -> a
 
 instance DataFrameIndex Int where
@@ -92,12 +94,18 @@ instance DataFrameIndex Int where
         , _dataframe_data = M.fromColumns $ L.map (_dataframe_data df `M.takeColumn`) idx }
       where
         col_names = L.map (_dataframe_col_names df V.!) idx
+
+    cindex df idx = _dataframe_data df `M.takeColumn` idx
+
     rsub df idx = df
         { _dataframe_row_names = V.fromList row_names
         , _dataframe_row_names_idx = HM.fromList $ L.zip row_names [0..]
         , _dataframe_data = M.fromRows $ L.map (_dataframe_data df `M.takeRow`) idx }
       where
         row_names = L.map (_dataframe_row_names df V.!) idx
+
+    rindex df idx = _dataframe_data df `M.takeRow` idx
+
     (!) df (i,j) = _dataframe_data df M.! (i,j)
 
 instance DataFrameIndex T.Text where
@@ -106,11 +114,23 @@ instance DataFrameIndex T.Text where
         idx' = L.map (\i -> HM.lookupDefault
             (error $ "index doesn't exist: " ++ T.unpack i) i $
             _dataframe_col_names_idx df) idx
+
+    cindex df i = cindex df i'
+      where
+        i' = HM.lookupDefault (error $ "index doesn't exist: " ++ T.unpack i) i $
+            _dataframe_col_names_idx df
+
     rsub df idx = rsub df idx'
       where
         idx' = L.map (\i -> HM.lookupDefault
             (error $ "index doesn't exist: " ++ T.unpack i) i $
             _dataframe_row_names_idx df) idx
+
+    rindex df i = rindex df i'
+      where
+        i' = HM.lookupDefault (error $ "index doesn't exist: " ++ T.unpack i) i $
+            _dataframe_row_names_idx df
+
     (!) df (a,b) = (!) df (i,j)
       where
         i = HM.lookupDefault (error $ "index doesn't exist: " ++ T.unpack a) a $
