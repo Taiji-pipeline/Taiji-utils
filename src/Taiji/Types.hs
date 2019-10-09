@@ -68,6 +68,9 @@ data TaijiConfig = TaijiConfig
     , _taiji_cluster_resolution :: Maybe Double
     , _taiji_blacklist :: Maybe FilePath
     , _taiji_callpeak_fdr :: Maybe Double
+    , _taiji_te_cutoff :: Maybe Double
+    , _taiji_scrna_cell_barcode_length :: Maybe Int
+    , _taiji_scrna_umi_length :: Maybe Int
     , _taiji_bwa_index    :: FilePath
     , _taiji_star_index   :: FilePath
     , _taiji_genome_index :: FilePath
@@ -103,6 +106,9 @@ instance FromJSON TaijiConfig where
             <*> v .:? "cluster_resolution"
             <*> v .:? "blacklist"
             <*> v .:? "callpeak_fdr"
+            <*> v .:? "tss_enrichment_cutoff"
+            <*> v .:? "rna_cell_barcode_length"
+            <*> v .:? "rna_umi_length"
             <*> v .:? "bwa_index" .!= (genomeDir ++ "BWA_index/")
             <*> v .:? "star_index" .!= (genomeDir ++ "STAR_index/")
             <*> v .:? "genome_index" .!= (genomeDir ++ "genome.index")

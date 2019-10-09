@@ -10,7 +10,7 @@ import Taiji.Utils.Plot.ECharts.Types
 import qualified Taiji.Utils.DataFrame as DF
 
 stackLine :: DF.DataFrame Double -> EChart
-stackLine df = option [jmacroE| {
+stackLine df = mkEChart [jmacroE| {
     grid: {
         left: "3%",
         right: "4%",

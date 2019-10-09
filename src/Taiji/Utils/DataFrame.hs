@@ -19,6 +19,7 @@ module Taiji.Utils.DataFrame
     , mapRows
     , mapCols
     , filterRows
+    , filterCols
     , Taiji.Utils.DataFrame.zip
     , Taiji.Utils.DataFrame.unzip
     , readData
@@ -35,9 +36,10 @@ module Taiji.Utils.DataFrame
 
 import           Bio.Utils.Functions    (ihs')
 import           Bio.Utils.Misc         (readDouble)
+import Conduit
+import Control.Monad (forM_)
 import qualified Data.ByteString.Char8  as B
 import qualified Data.Text as T
-import qualified Data.Text.IO as T
 import qualified Data.CaseInsensitive   as CI
 import           Data.Function          (on)
 import           Data.List as L
@@ -205,6 +207,15 @@ filterRows fn df = df
     (names, rows) = L.unzip $ filter (uncurry fn) $
         L.zip (V.toList $ _dataframe_row_names df) $ M.toRows $ _dataframe_data df
 
+filterCols :: (T.Text -> V.Vector a -> Bool) -> DataFrame a -> DataFrame a
+filterCols fn df = df
+    { _dataframe_col_names = V.fromList names
+    , _dataframe_col_names_idx = HM.fromList $ L.zip names [0..]
+    , _dataframe_data = M.fromColumns cols }
+  where
+    (names, cols) = L.unzip $ filter (uncurry fn) $
+        L.zip (V.toList $ _dataframe_col_names df) $ M.toColumns $ _dataframe_data df
+
 type ReodrderFn a = [(T.Text, V.Vector a)] -> [(T.Text, V.Vector a)]
 
 reorderRows :: ReodrderFn a -> DataFrame a -> DataFrame a
@@ -230,11 +241,17 @@ reorderColumns fn df
         M.toColumns $ _dataframe_data df
 
 writeTable :: FilePath -> (a -> T.Text) -> DataFrame a -> IO ()
-writeTable output f DataFrame{..} = T.writeFile output $ T.unlines $
-    L.map (T.intercalate "\t") $ ("" : V.toList _dataframe_col_names) :
-    L.zipWith (:) (V.toList _dataframe_row_names)
-    ((L.map . L.map) f $ M.toLists _dataframe_data)
-
+writeTable output f DataFrame{..} = runResourceT $ runConduit $
+    source .| unlinesAsciiC .| sinkFile output
+  where
+    source = do
+        yield $ B.pack $ T.unpack $ T.intercalate "\t" $
+            "" : V.toList _dataframe_col_names
+        forM_ (L.zip (V.toList _dataframe_row_names) $ M.toRows _dataframe_data) $
+            \(nm, xs) -> yield $ B.pack $ T.unpack $
+                T.intercalate "\t" $ nm : L.map f (V.toList xs)
+{-# NOINLINE writeTable #-}
+    
 -- | Read data, normalize and calculate p-values.
 readData :: FilePath   -- ^ PageRank
          -> FilePath   -- ^ Gene expression

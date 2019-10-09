@@ -1,8 +1,9 @@
 {-# LANGUAGE QuasiQuotes #-}
 module Taiji.Utils.Plot.ECharts.Types
     ( EChart(..)
-    , option
-    , js
+    , EChartAttribute(..)
+    , Renderer(..)
+    , mkEChart
     , toolbox
     , title
 
@@ -14,22 +15,28 @@ import Language.Javascript.JMacro
 
 data EChart = EChart
     { _option :: [JExpr]
-    , _js_codes :: JStat }
+    , _js_codes :: JStat
+    , _width :: Int
+    , _height :: Int
+    , _renderer :: Renderer
+    }
 
-instance Semigroup EChart where
-    (EChart a1 b1) <> (EChart a2 b2) = EChart (a1 <> a2) (b1 <> b2)
+data Renderer = Canvas | SVG
 
-instance Monoid EChart where
-    mempty = EChart [] mempty
+class EChartAttribute a where
+    addAttr :: a -> EChart -> EChart
 
-option :: JExpr -> EChart
-option o = EChart [o] mempty
+instance EChartAttribute JExpr where
+    addAttr expr e = e{_option=_option e ++ [expr]}
 
-js :: JStat -> EChart
-js j = EChart [] j
+instance EChartAttribute JStat where
+    addAttr js e = e{_js_codes=_js_codes e <> js}
 
-toolbox :: EChart
-toolbox = option [jmacroE| {
+mkEChart :: JExpr -> EChart
+mkEChart expr = EChart [expr] mempty 1300 700 Canvas
+
+toolbox :: JExpr
+toolbox = [jmacroE| {
     toolbox: {
         show: true,
         feature: {
@@ -43,8 +50,8 @@ toolbox = option [jmacroE| {
     }
     }|]
 
-title :: String -> EChart
-title x = option [jmacroE| { title: {text: `x`} } |]
+title :: String -> JExpr
+title x = [jmacroE| { title: {text: `x`} } |]
 
 symbols :: [String]
 symbols = ["circle", "rect", "roundRect", "triangle", "diamond", "pin", "arrow"]

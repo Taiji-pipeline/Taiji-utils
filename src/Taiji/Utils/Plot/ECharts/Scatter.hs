@@ -29,7 +29,7 @@ type Point2D = (Double, Double)
 scatter3D :: [(String, [Point3D])]
           -> VisualMap
           -> EChart
-scatter3D dat viz = o <> js [jmacro| var !dataset = `dataPoints`; |]
+scatter3D dat viz = addAttr [jmacro| var !dataset = `dataPoints`; |] o
   where
     dataPoints =
         let f (nm, (x, y, z)) v = (nm, [toJSON x, toJSON y, toJSON z, toJSON v])
@@ -38,7 +38,7 @@ scatter3D dat viz = o <> js [jmacro| var !dataset = `dataPoints`; |]
             Categorical vs ->zipWith f points vs
       where
         points = concatMap (\(x,y) -> zip (repeat x) y) dat
-    o = option [jmacroE| {
+    o = mkEChart [jmacroE| {
         grid3D: [ {
             width : "45%",
             axisTick:false,
@@ -110,7 +110,7 @@ scatter3D dat viz = o <> js [jmacro| var !dataset = `dataPoints`; |]
 scatter :: [(String, [Point2D])]
         -> VisualMap
         -> EChart
-scatter dat viz = o <> js [jmacro| var !dataset = `dataPoints`; |]
+scatter dat viz = addAttr [jmacro| var !dataset = `dataPoints`; |] o
   where
     dataPoints =
         let f (nm, (x, y)) v = (nm, [toJSON x, toJSON y, toJSON v])
@@ -119,7 +119,7 @@ scatter dat viz = o <> js [jmacro| var !dataset = `dataPoints`; |]
             Categorical vs ->zipWith f points vs
       where
         points = concatMap (\(x,y) -> zip (repeat x) y) dat
-    o = option [jmacroE| {
+    o = mkEChart [jmacroE| {
         grid: [ {
             height: 500,
             width: 500,
@@ -202,13 +202,13 @@ scatter dat viz = o <> js [jmacro| var !dataset = `dataPoints`; |]
 scatter3D' :: [(String, [Point3D])]
           -> [(String, [Double])]   -- a list of color map
           -> EChart
-scatter3D' dat viz = o <> jsCode
+scatter3D' dat viz = addAttr jsCode o
   where
     select :: String
     select = concat $
         zipWith (\idx (nm,_) -> printf "<option value=%d>%s</option>" idx nm)
         [3::Int ..] viz
-    jsCode = js [jmacro|
+    jsCode = [jmacro|
         function mkChange() {
             var x = this.value;
             var total = Object.entries(dataset).reduce(function (total, pair) {
@@ -236,7 +236,7 @@ scatter3D' dat viz = o <> jsCode
         f (nm, (x, y, z)) v = (nm, [toJSON x, toJSON y, toJSON z] ++ map toJSON v)
         points = concatMap (\(x,y) -> zip (repeat x) y) dat
         cols = transpose $ map snd viz
-    o = option [jmacroE| {
+    o = mkEChart [jmacroE| {
         grid3D: [ {
             width : "45%",
             axisTick:false,
@@ -296,11 +296,11 @@ scatter3D' dat viz = o <> jsCode
     } |]
 
 scatter' :: [(String, [Point2D])] -> EChart
-scatter' dat = o <> js [jmacro| var !dataset = `dataPoints`; |]
+scatter' dat = addAttr [jmacro| var !dataset = `dataPoints`; |] o
   where
     dataPoints = toJSON $ HM.fromList $
         map (second (map (\(a, b) -> [toJSON a, toJSON b]))) dat
-    o = option [jmacroE| {
+    o = mkEChart [jmacroE| {
         grid: {
             height: 600,
             width: 600,

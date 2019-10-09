@@ -11,7 +11,7 @@ import qualified Data.Vector.Unboxed as U
 import Taiji.Utils.Plot.ECharts.Types
 
 boxplot :: [(T.Text, [Double])] -> EChart
-boxplot input = option [jmacroE| {
+boxplot input = mkEChart [jmacroE| {
     grid: { containLabel: true },
     xAxis: {
         type: "category",

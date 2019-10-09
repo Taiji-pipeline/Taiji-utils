@@ -10,7 +10,7 @@ import Taiji.Utils.Plot.ECharts.Types
 import Taiji.Utils.DataFrame hiding (zip, unzip)
 
 heatmap :: DataFrame Double -> EChart
-heatmap df = option [jmacroE| {
+heatmap df = mkEChart [jmacroE| {
     grid: { containLabel: true },
     xAxis: {
         type: "category",

@@ -6,6 +6,7 @@ module Taiji.Utils.Plot.ECharts.PunchChart
     , punchChart2 ) where
 
 import Language.Javascript.JMacro
+import Data.Aeson
 import qualified Data.Matrix            as M
 
 import Taiji.Utils.Plot.ECharts.Types
@@ -13,10 +14,10 @@ import Taiji.Utils.Plot.ECharts.Types
 import qualified Taiji.Utils.DataFrame as DF
 
 punchChart :: [(String, DF.DataFrame (Double, Double))] -> EChart
-punchChart dat = baseOption <> option [jmacroE| { options: `map mkPunchChartOpt dfs` } |]
+punchChart dat = addAttr baseOption $ mkEChart [jmacroE| { options: `map mkPunchChartOpt dfs` } |]
   where
     (nms, dfs) = unzip dat
-    baseOption = option [jmacroE| {
+    baseOption = [jmacroE| {
         baseOption: {
             timeline: {
                 axisType: 'category',
@@ -165,11 +166,13 @@ linearMap (lo, hi) xs = map f xs
     max' = maximum xs
 {-# INLINE linearMap #-}
 
-punchChart2 :: DF.DataFrame Double -> EChart
-punchChart2 df = option [jmacroE| {
+punchChart2 :: DF.DataFrame Double -> (Double, Double) -> EChart
+punchChart2 df (lo, hi) = mkEChart [jmacroE| {
     series: [{
         name: "Punch Card",
         type: "scatter",
+        symbolSize: function (val) { return
+                `lo` + (val[2] - `min'`) / (`max'` - `min'`) * (`hi` - `lo`); },
         itemStyle: {
             emphasis: {
                 borderColor: 'black',
@@ -192,7 +195,7 @@ punchChart2 df = option [jmacroE| {
     },
     yAxis: {
         type: "category",
-        data: `DF.rowNames df`,
+        data: `reverse $ DF.rowNames df`,
         axisLine: { show: false },
         splitLine: {
             show: true,
@@ -206,6 +209,12 @@ punchChart2 df = option [jmacroE| {
         data: ["Punch Card"],
         left: "left"
     },
+    visualMap: {
+        type: "piecewise",
+        show: false,
+        categories: `DF.rowNames df`,
+        inRange: { color: `colors`}
+    },
     tooltip: {
         position: "top",
         formatter: function (params) { return(params.value[2]) }
@@ -216,32 +225,15 @@ punchChart2 df = option [jmacroE| {
         bottom: 100,
         right: 50,
         containLabel: true
-    },
-    visualMap: {
-        left: "right",
-        top: "10%",
-        dimension: 2,
-        min: `min'`,
-        max: `max'`,
-        itemWidth: 30,
-        itemHeight: 120,
-        calculable: true,
-        text: ["size"],
-        textGap: 30,
-        textStyle: { color: "#fff" },
-        inRange: { symbolSize: [10, 25] },
-        controller: {
-            inRange: {
-                color: ["#c23531"]
-            }
-        }
     }
     } |]
   where
-    dat = zipWith (\[j,i] x -> [i, j, x, x]) idx values
-    values = concat $ M.toLists $ DF._dataframe_data df
-    min' = minimum values
-    max' = maximum values
-    nrow = fromIntegral $ M.rows $ DF._dataframe_data df
-    ncol = fromIntegral $ M.cols $ DF._dataframe_data df
+    colors = take (length $ DF.rowNames df) $ cycle defColors
+    dat = zipWith (\[j,i] (x, lab) -> [toJSON i, toJSON j, toJSON x, toJSON lab]) idx values
+    values = concat $ zipWith (\i xs -> zip xs $ repeat i) (DF.rowNames df) $
+        M.toLists $ DF._dataframe_data df
+    min' = minimum $ map fst values
+    max' = maximum $ map fst values
+    nrow = M.rows $ DF._dataframe_data df
+    ncol = M.cols $ DF._dataframe_data df
     idx = sequence [[nrow - 1, nrow -2 .. 0], [0 .. ncol - 1]]

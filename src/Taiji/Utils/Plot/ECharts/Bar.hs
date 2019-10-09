@@ -10,7 +10,7 @@ import Taiji.Utils.Plot.ECharts.Types
 import qualified Taiji.Utils.DataFrame as DF
 
 stackBar :: DF.DataFrame Double -> EChart
-stackBar df = option [jmacroE| {
+stackBar df = mkEChart [jmacroE| {
     grid: { containLabel: true },
     tooltip: {
         trigger: "axis",
