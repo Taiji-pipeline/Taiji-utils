@@ -44,10 +44,12 @@ library
                      , bioinformatics-toolkit >= 0.5.0
                      , bbi
                      , bytestring
+                     , bytestring-lexing
                      , blaze-html
                      , containers
                      , cereal
                      , conduit
+                     , conduit-extra
                      , case-insensitive
                      , clustering
                      , deepseq
