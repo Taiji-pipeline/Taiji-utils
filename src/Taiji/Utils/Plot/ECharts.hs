@@ -12,6 +12,7 @@ module Taiji.Utils.Plot.ECharts
     , module Taiji.Utils.Plot.ECharts.Boxplot
     , module Taiji.Utils.Plot.ECharts.Radar
     , module Taiji.Utils.Plot.ECharts.Types
+    , module Taiji.Utils.Plot.ECharts.Graph
     , embedEchart
     ) where
 
@@ -30,6 +31,7 @@ import Taiji.Utils.Plot.ECharts.PunchChart
 import Taiji.Utils.Plot.ECharts.Heatmap
 import Taiji.Utils.Plot.ECharts.Boxplot
 import Taiji.Utils.Plot.ECharts.Radar
+import Taiji.Utils.Plot.ECharts.Graph
 import Taiji.Utils.Plot.ECharts.Types
 
 embedEchart :: String   -- ^ ID

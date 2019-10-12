@@ -4,8 +4,10 @@ module Taiji.Utils.Plot.ECharts.Types
     , EChartAttribute(..)
     , Renderer(..)
     , mkEChart
+
     , toolbox
     , title
+    , yAxisLabel
 
     , symbols
     , defColors
@@ -25,6 +27,11 @@ data Renderer = Canvas | SVG
 
 class EChartAttribute a where
     addAttr :: a -> EChart -> EChart
+    (>+>) :: a -> EChart -> EChart
+    (>+>) = addAttr
+
+    infixr 6 >+>
+
 
 instance EChartAttribute JExpr where
     addAttr expr e = e{_option=_option e ++ [expr]}
@@ -52,6 +59,15 @@ toolbox = [jmacroE| {
 
 title :: String -> JExpr
 title x = [jmacroE| { title: {text: `x`} } |]
+
+yAxisLabel :: String -> JExpr
+yAxisLabel x = [jmacroE| {
+    yAxis: {
+        name: `x`,
+        nameLocation: "middle",
+        nameGap: 40
+    }
+    }|]
 
 symbols :: [String]
 symbols = ["circle", "rect", "roundRect", "triangle", "diamond", "pin", "arrow"]

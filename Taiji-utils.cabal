@@ -30,6 +30,7 @@ library
                        Taiji.Utils.Plot.ECharts.Heatmap
                        Taiji.Utils.Plot.ECharts.Boxplot
                        Taiji.Utils.Plot.ECharts.Radar
+                       Taiji.Utils.Plot.ECharts.Graph
                        Taiji.Utils.Plot.ECharts.PunchChart
                        Taiji.Utils.Plot.Vega
                        Taiji.Utils.Plot.Vega.Heatmap
