@@ -68,6 +68,7 @@ data TaijiConfig = TaijiConfig
     , _taiji_cluster_resolution :: Maybe Double
     , _taiji_blacklist :: Maybe FilePath
     , _taiji_callpeak_fdr :: Maybe Double
+    , _taiji_callpeak_genome_size :: Maybe String
     , _taiji_te_cutoff :: Maybe Double
     , _taiji_scrna_cell_barcode_length :: Maybe Int
     , _taiji_scrna_umi_length :: Maybe Int
@@ -92,7 +93,7 @@ instance FromJSON TaijiConfig where
         let String dir = M.lookupDefault (error "no output_dir") "output_dir" v
             genomeDir = T.unpack dir ++ "/GENOME/"
             assembly = case M.lookup "assembly" v of
-                Just (String x) -> Just $ T.unpack x
+                Just (String x) -> Just $ T.unpack $ T.toUpper x
                 _ -> Nothing
         TaijiConfig
             <$> v .: "output_dir"
@@ -106,6 +107,12 @@ instance FromJSON TaijiConfig where
             <*> v .:? "cluster_resolution"
             <*> v .:? "blacklist"
             <*> v .:? "callpeak_fdr"
+            <*> v .:? "callpeak_genome_size" .!= ( case assembly of
+                Nothing -> Nothing
+                Just ass -> case () of
+                    _ | ass `elem` mouseGenome -> Just "mm"
+                      | ass `elem` humanGenome -> Just "hs"
+                      | otherwise -> Nothing )
             <*> v .:? "tss_enrichment_cutoff"
             <*> v .:? "rna_cell_barcode_length"
             <*> v .:? "rna_umi_length"
@@ -114,37 +121,37 @@ instance FromJSON TaijiConfig where
             <*> v .:? "genome_index" .!= (genomeDir ++ "genome.index")
             <*> v .:? "rsem_index" .!= (genomeDir ++ "RSEM_index/")
 
+mouseGenome :: [String]
+mouseGenome = ["GRCM38", "MM10"]
+
+humanGenome :: [String]
+humanGenome = ["GRCH38", "HG38"]
+
 fetchGenome :: FilePath -> String -> IO ()
 fetchGenome output assembly 
-    | assembly' == "GRCH38" || assembly' == "HG38" = getUrl output 
+    | assembly == "GRCH38" || assembly == "HG38" = getUrl output 
         "ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_31/GRCh38.primary_assembly.genome.fa.gz" True
-    | assembly' == "GRCM38" || assembly' == "MM10" = getUrl output 
+    | assembly == "GRCM38" || assembly == "MM10" = getUrl output 
         "ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M22/GRCm38.primary_assembly.genome.fa.gz" True
-    | assembly' == "MM_TEST" = getUrl output
+    | assembly == "MM_TEST" = getUrl output
         "ftp://hgdownload.soe.ucsc.edu/goldenPath/mm10/chromosomes/chr19.fa.gz" True
     | otherwise = error "Unknown assembly"
-  where
-    assembly' = map toUpper assembly
 
 fetchAnnotation :: FilePath -> String -> IO ()
 fetchAnnotation output assembly
-    | assembly' == "GRCH38" || assembly' == "HG38" = getUrl output 
+    | assembly == "GRCH38" || assembly == "HG38" = getUrl output 
         "ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_31/gencode.v31.annotation.gtf.gz" True
-    | assembly' `elem` ["GRCM38", "MM10", "MM_TEST"] = getUrl output 
+    | assembly `elem` ["GRCM38", "MM10", "MM_TEST"] = getUrl output 
         "ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M22/gencode.vM22.annotation.gtf.gz" True
     | otherwise = error "Unknown assembly"
-  where
-    assembly' = map toUpper assembly
 
 fetchMotif :: FilePath -> String -> IO ()
 fetchMotif output assembly
-    | assembly' == "GRCH38" || assembly' == "HG38" = getUrl output 
+    | assembly == "GRCH38" || assembly == "HG38" = getUrl output 
         "https://taiji-pipeline.github.io/documentation/_downloads/cisBP_human.meme" False
-    | assembly' `elem` ["GRCM38", "MM10", "MM_TEST"] = getUrl output 
+    | assembly `elem` ["GRCM38", "MM10", "MM_TEST"] = getUrl output 
         "https://taiji-pipeline.github.io/documentation/_downloads/cisBP_mouse.meme" False
     | otherwise = error "Unknown assembly"
-  where
-    assembly' = map toUpper assembly
 
 type GeneName = CI B.ByteString
 type Promoter = BEDExt BED3 GeneName

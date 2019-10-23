@@ -43,6 +43,7 @@ tree input = mkEChart [jmacroE| {
             }
         },
         animationDuration: 550,
-        animationDurationUpdate: 750
+        animationDurationUpdate: 750,
+        roam: true
     }
     } |]
