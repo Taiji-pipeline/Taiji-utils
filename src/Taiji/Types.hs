@@ -98,7 +98,7 @@ instance FromJSON TaijiConfig where
         TaijiConfig
             <$> v .: "output_dir"
             <*> v .: "input"
-            <*> v .:? "assembly"
+            <*> return assembly
             <*> v .:? "genome" .!= fmap (\x -> genomeDir ++ x ++ ".fasta") assembly
             <*> v .:? "annotation" .!= fmap (\x -> genomeDir ++ x ++ ".gtf") assembly
             <*> v .:? "motif_file" .!= fmap (\x -> genomeDir ++ x ++ ".meme") assembly
