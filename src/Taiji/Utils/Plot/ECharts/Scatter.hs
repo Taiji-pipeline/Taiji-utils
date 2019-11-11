@@ -12,7 +12,7 @@ module Taiji.Utils.Plot.ECharts.Scatter
 import Language.Javascript.JMacro
 import Data.Aeson
 import Control.Arrow
-import Data.List (groupBy, transpose)
+import Data.List (groupBy, transpose, foldl1')
 import Data.List.Ordered (nubSort)
 import Data.Function (on)
 import qualified Data.HashMap.Strict as HM
@@ -298,6 +298,11 @@ scatter3D' dat viz = addAttr jsCode o
 scatter' :: [(String, [Point2D])] -> EChart
 scatter' dat = addAttr [jmacro| var !dataset = `dataPoints`; |] o
   where
+    nPoints = foldl1' (+) $ map (length . snd) dat
+    ptSize :: Double
+    ptSize | nPoints > 10000 = 2
+           | nPoints > 5000 = 3
+           | otherwise = 4
     dataPoints = toJSON $ HM.fromList $
         map (second (map (\(a, b) -> [toJSON a, toJSON b]))) dat
     o = mkEChart [jmacroE| {
@@ -332,7 +337,7 @@ scatter' dat = addAttr [jmacro| var !dataset = `dataPoints`; |] o
         xAxisIndex: `i::Int`,
         yAxisIndex: `i::Int`,
         type: 'scatterGL',
-        symbolSize: 2,
+        symbolSize: `ptSize`,
         name: `label`,
         data: dataset[`label`]
     } |]

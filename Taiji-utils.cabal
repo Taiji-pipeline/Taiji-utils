@@ -59,6 +59,7 @@ library
                      , double-conversion
                      , hashable
                      , matrices
+                     , mwc-random
                      , jmacro
                      , microlens
                      , microlens-mtl

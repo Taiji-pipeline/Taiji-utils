@@ -18,12 +18,16 @@ module Taiji.Utils
     , mkSpMatrix
     , streamRows
     , sinkRows
+    , sinkRows'
     , decodeRowWith
     , encodeRowWith
 
     , filterCols
     , concatMatrix
 
+    -- * Plotting
+    , visualizeCluster
+    , sampleCells
     ) where
 
 import Data.BBI.BigBed
@@ -31,25 +35,25 @@ import Bio.Data.Experiment
 import Bio.Data.Bed
 import Bio.Utils.Functions (scale)
 import Data.Conduit.Zlib (multiple, ungzip, gzip)
-import Conduit
-import Data.Maybe
-import Lens.Micro ((^.))
 import Data.ByteString.Lex.Integral (packDecimal)
 import Control.Arrow (first, second)
 import Data.Conduit.Internal (zipSinks)
 import           Data.CaseInsensitive    (mk)
 import Data.List (foldl', sort)
-import Control.Monad
 import           Bio.Utils.Misc          (readDouble, readInt)
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
 import qualified Data.Matrix.Unboxed as MU
 import qualified Data.ByteString.Char8 as B
 import qualified Data.Vector.Unboxed as U
+import qualified Data.Vector as V
 import qualified Data.Set as S
 import Text.Printf (printf)
+import System.Random.MWC.Distributions
+import System.Random.MWC
 
-import Taiji.Types
+import Taiji.Utils.Plot.ECharts
+import Taiji.Prelude
 
 -- | Open bigbed files.
 openBBs :: [(B.ByteString, Maybe (File '[] 'BigBed))]
@@ -65,9 +69,9 @@ queryBB bed idx = case HM.lookup (bed^.chrom) idx of
     Nothing -> return ()
     Just i -> query (bed^.chrom, bed^.chromStart, bed^.chromEnd) i .| mapC f
   where
-    f (chr, s, e, rest) = BEDExt (asBed chr s e) info
+    f (chr, s, e, rest) = BEDExt (asBed chr s e) site
       where
-        info = SiteInfo
+        site = SiteInfo
             { _tf_name = mk $ head $ B.split '+' f1
             , _site_affinity = toSiteAffinity $ readInt f2
             , _peak_affinity = toPeakAffinity 100 }
@@ -82,7 +86,7 @@ readExpression :: Double    -- ^ Threshold to call a gene as non-expressed
                -> B.ByteString  -- ^ cell type
                -> FilePath
                -> IO (HM.HashMap GeneName (Double, Double)) -- ^ absolute value and z-score
-readExpression cutoff ct fl = do
+readExpression thres ct fl = do
     c <- B.readFile fl
     let ((_:header):dat) = map (B.split '\t') $ B.lines c
         rowNames = map (mk . head) dat
@@ -96,7 +100,7 @@ readExpression cutoff ct fl = do
     pseudoCount = 0.1
     computeZscore xs
         | U.length xs == 1 = U.map log xs
-        | U.all (<cutoff) xs = U.replicate (U.length xs) 0
+        | U.all (<thres) xs = U.replicate (U.length xs) 0
         | U.length xs == 2 = let fc = log $ U.head xs / U.last xs
                              in U.fromList [fc, negate fc]
         | U.all (== U.head xs) xs = U.replicate (U.length xs) 0
@@ -147,7 +151,17 @@ sinkRows n m encoder output = do
     header = B.pack $ printf "Sparse matrix: %d x %d" n m
     sink = unlinesAsciiC .| gzip .| sinkFile output
 
-
+sinkRows' :: Int   -- ^ Number of cols
+          -> (a -> B.ByteString) 
+          -> FilePath
+          -> ConduitT (Row a) Void (ResourceT IO) ()
+sinkRows' m encoder output = do
+    (n, tmp) <- mapC (encodeRowWith encoder) .| zipSinks lengthC sink
+    sourceFile tmp .| linesUnboundedAsciiC .| mapC (decodeRowWith id) .|
+        sinkRows n m id output
+  where
+    sink = unlinesAsciiC .| sinkTempFile "./" "tmp" 
+  
 decodeRowWith :: (B.ByteString -> a) -> B.ByteString -> Row a
 decodeRowWith decoder x = (nm, map f values)
   where
@@ -202,3 +216,34 @@ concatMatrix output inputs = do
         nCell = foldl' (+) 0 $ map (_num_row . snd) mats
         nBin = _num_col $ snd $ head mats
         header = B.pack $ printf "Sparse matrix: %d x %d" nCell nBin
+
+
+visualizeCluster :: [CellCluster] -> [EChart]
+visualizeCluster cls =
+    [ addAttr toolbox $ scatter' $ flip map cls $ \(CellCluster nm cells) ->
+        (B.unpack nm, map _cell_2d cells) ] ++ if noName then [] else
+          [ addAttr toolbox $ scatter' $ map (first head . unzip) $
+              groupBy ((==) `on` fst) $ sortBy (comparing fst) $ concatMap
+              (map (\x -> (getName $ _cell_barcode x, _cell_2d x)) . _cluster_member) cls
+          ]
+  where
+    noName = null $ getName $ _cell_barcode $ head $
+        _cluster_member $ head cls
+    getName x = let prefix = fst $ B.breakEnd (=='+') x
+                in if B.null prefix then "" else B.unpack $ B.init prefix
+
+-- | Random sample 30,000 cells.
+sampleCells :: [CellCluster] -> IO [CellCluster]
+sampleCells clusters
+    | ratio >= 1 = return clusters
+    | otherwise = do
+        gen <- create
+        forM clusters $ \c -> do
+            s <- sampling gen ratio $ V.fromList $ _cluster_member c
+            return $ c {_cluster_member = V.toList s}
+  where
+    n = foldl1' (+) $ map (length . _cluster_member) clusters
+    ratio = 1 / (fromIntegral n / 30000) :: Double
+    sampling gen frac v = V.take n' <$> uniformShuffle v gen
+      where
+        n' = max 200 $ truncate $ frac * fromIntegral (V.length v)
