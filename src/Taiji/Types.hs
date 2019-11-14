@@ -72,6 +72,7 @@ data TaijiConfig = TaijiConfig
     , _taiji_te_cutoff :: Maybe Double
     , _taiji_scrna_cell_barcode_length :: Maybe Int
     , _taiji_scrna_umi_length :: Maybe Int
+    , _taiji_scrna_doublet_score_cutoff :: Double
     , _taiji_bwa_index    :: FilePath
     , _taiji_star_index   :: FilePath
     , _taiji_genome_index :: FilePath
@@ -114,8 +115,9 @@ instance FromJSON TaijiConfig where
                       | ass `elem` humanGenome -> Just "hs"
                       | otherwise -> Nothing )
             <*> v .:? "tss_enrichment_cutoff"
-            <*> v .:? "rna_cell_barcode_length"
-            <*> v .:? "rna_umi_length"
+            <*> v .:? "scrna_cell_barcode_length"
+            <*> v .:? "scrna_umi_length"
+            <*> v .:? "scrna_doublet_score_cutoff" .!= 0.5
             <*> v .:? "bwa_index" .!= (genomeDir ++ "BWA_index/")
             <*> v .:? "star_index" .!= (genomeDir ++ "STAR_index/")
             <*> v .:? "genome_index" .!= (genomeDir ++ "genome.index")
