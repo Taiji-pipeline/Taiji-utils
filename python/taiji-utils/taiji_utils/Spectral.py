@@ -112,7 +112,7 @@ Output:
 """
 def jaccard_similarity(mat1, mat2=None):
     coverage1 = mat1.sum(axis=1)
-    if(mat2):
+    if(mat2 != None):
         coverage2 = mat2.sum(axis=1)
         jm = mat1.dot(mat2.T).todense()
         n1, n2 = jm.shape

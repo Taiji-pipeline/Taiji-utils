@@ -4,6 +4,7 @@ import math
 from sklearn.neighbors import kneighbors_graph
 import igraph as ig
 import leidenalg as la
+import umap
 
 from .Spectral import spectral
 
@@ -13,22 +14,10 @@ def reduceDimension(args):
     else:
         print("Unknown method")
 
-def getEmbedding(mat, output, method="umap"):
-    print(method)
-    if(method == "umap"):
-        import umap
-        e1 = umap.UMAP(random_state=42, n_components=2).fit_transform(mat)
-        e2 = umap.UMAP(random_state=42, n_components=3).fit_transform(mat)
-        embedding = np.concatenate((e1, e2), axis=1)
-    elif(method == "none"):
-        e1 = mat[...,:2]
-        e2 = mat[...,:3]
-        embedding = np.concatenate((e1, e2), axis=1)
-    else:
-        from MulticoreTSNE import MulticoreTSNE as TSNE
-        e1 = TSNE(n_jobs=4, n_components=2, perplexity=30).fit_transform(mat)
-        e2 = TSNE(n_jobs=4, n_components=3, perplexity=30).fit_transform(mat)
-        embedding = np.concatenate((e1, e2), axis=1)
+def getEmbedding(mat, output):
+    e1 = umap.UMAP(random_state=42, n_components=2).fit_transform(mat)
+    e2 = umap.UMAP(random_state=42, n_components=3).fit_transform(mat)
+    embedding = np.concatenate((e1, e2), axis=1)
     np.savetxt(output, embedding, delimiter='\t')
 
 def clustering(args):
@@ -47,7 +36,7 @@ def clustering(args):
         print("Create Embedding:")
         data = readCoordinates(fls[0], n_dim=args.dim,
            discard=args.discard, scale=args.scale)
-        getEmbedding(data, args.embed, method=args.embed_method)
+        getEmbedding(data, args.embed)
 
 def readCoordinates(fl, n_dim=None, discard=None, scale=None):
     def scaling(xs):
@@ -83,7 +72,7 @@ def mkKNNGraph(fls, k=25):
 
 def leiden(gr, resolution=None):
     weights = gr.es["weight"]
-    if resolution:
+    if (resolution != None):
         partition = la.find_partition(gr, la.RBConfigurationVertexPartition,
             n_iterations=10, seed=12343, resolution_parameter=resolution,
             weights=weights)
