@@ -3,10 +3,10 @@ import numpy as np
 import math
 from sklearn.neighbors import kneighbors_graph
 import igraph as ig
-import leidenalg as la
 import umap
 
 from .Spectral import spectral
+from .Clustering import leiden
 
 def reduceDimension(args):
     if args.method == "spectral":
@@ -14,29 +14,49 @@ def reduceDimension(args):
     else:
         print("Unknown method")
 
-def getEmbedding(mat, output):
-    e1 = umap.UMAP(random_state=42, n_components=2).fit_transform(mat)
-    e2 = umap.UMAP(random_state=42, n_components=3).fit_transform(mat)
-    embedding = np.concatenate((e1, e2), axis=1)
-    np.savetxt(output, embedding, delimiter='\t')
-
-def clustering(args):
+"""
+args.input: a list of files.
+args.k: number of neighbours.
+args.output: output file.
+args.embed: embeding file.
+"""
+def mkKNNGraph(args):
     fls = args.input.split(',')
-    gr = mkKNNGraph(fls, k=args.k)
-
-    print("Start clustering")
-    partition = leiden(gr, resolution=args.res)
-
-    print("Clusters: ")
-    print(len(partition)) 
-    with open(args.output, 'w') as f:
-        f.write('\n'.join([','.join(map(str, c)) for c in partition]))
+    adj = None
+    for fl in fls:
+        mat = readCoordinates(fl)
+        if (adj == None):
+            adj = kneighbors_graph(mat, args.k, mode='distance')
+        else:
+            adj += kneighbors_graph(mat, args.k, mode='distance')
+    adj = adj / len(fls)
+    np.reciprocal(adj.data, out=adj.data)
+    sp.sparse.save_npz(args.output, adj)
 
     if(args.embed):
         print("Create Embedding:")
-        data = readCoordinates(fls[0], n_dim=args.dim,
-           discard=args.discard, scale=args.scale)
+        data = readCoordinates(fls[0])
         getEmbedding(data, args.embed)
+
+def clustering(args):
+    adj = sp.sparse.load_npz(args.input)
+    vcount = max(adj.shape)
+    sources, targets = adj.nonzero()
+    edgelist = list(zip(sources.tolist(), targets.tolist()))
+    weights = np.ravel(adj[(sources, targets)])
+    gr = ig.Graph(n=vcount, edges=edgelist, edge_attrs={"weight": weights})
+
+    print("Start Clustering...")
+    partition = leiden(gr, resolution=args.res, optimizer=args.optimizer)
+
+    n = 0
+    with open(args.output, 'w') as f:
+        cutoff = max(1, min(50, 0.001*vcount))
+        for c in partition:
+            if len(c) > cutoff:
+                n = n + 1
+                print(','.join(map(str, c)), file=f) 
+    print(n)
 
 def readCoordinates(fl, n_dim=None, discard=None, scale=None):
     def scaling(xs):
@@ -54,29 +74,9 @@ def readCoordinates(fl, n_dim=None, discard=None, scale=None):
         data = np.apply_along_axis(scaling, 1, data)
     return data
 
-def mkKNNGraph(fls, k=25):
-    adj = None
-    for fl in fls:
-        mat = readCoordinates(fl)
-        if (adj == None):
-            adj = kneighbors_graph(mat, k, mode='distance')
-        else:
-            adj += kneighbors_graph(mat, k, mode='distance')
-    vcount = max(adj.shape)
-    sources, targets = adj.nonzero()
-    edgelist = list(zip(sources.tolist(), targets.tolist()))
+def getEmbedding(mat, output):
+    e1 = umap.UMAP(random_state=42, n_components=2).fit_transform(mat)
+    e2 = umap.UMAP(random_state=42, n_components=3).fit_transform(mat)
+    embedding = np.concatenate((e1, e2), axis=1)
+    np.savetxt(output, embedding, delimiter='\t')
 
-    weights = 1 / (np.ravel(adj[(sources, targets)]) / len(fls))
-    gr = ig.Graph(n=vcount, edges=edgelist, edge_attrs={"weight": weights})
-    return gr
-
-def leiden(gr, resolution=None):
-    weights = gr.es["weight"]
-    if (resolution != None):
-        partition = la.find_partition(gr, la.RBConfigurationVertexPartition,
-            n_iterations=10, seed=12343, resolution_parameter=resolution,
-            weights=weights)
-    else:
-        partition = la.find_partition(gr, la.ModularityVertexPartition,
-            n_iterations=10, seed=12343, weights=weights)
-    return partition
