@@ -8,7 +8,7 @@ from .Utils import readMatrix, regress
 
 def spectral(args):
     nSample = max(1000, args.sample_size)
-    nChunk = 10000
+    nChunk = nSample
 
     print("Read Data")
     if (args.distance == "jaccard"):
