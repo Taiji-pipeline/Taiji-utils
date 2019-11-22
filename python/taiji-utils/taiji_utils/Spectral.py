@@ -22,7 +22,7 @@ def spectral(args):
         idx = np.arange(n)
         np.random.shuffle(idx)
         sample = mat[idx[:nSample], :]
-        dm = Spectral(sample, sampling_rate=nSample/n)
+        dm = Spectral(sample, n_dim=args.dim, distance=args.distance, sampling_rate=nSample/n)
         i = nSample
         res = [dm.coordinates]
         while i < n:
@@ -32,10 +32,10 @@ def spectral(args):
         res = np.concatenate(res, axis=0)[:, 1:]
         res = res[np.argsort(idx), :]
     else:
-        res = Spectral(mat, distance=args.distance).coordinates[:, 1:]
+        res = Spectral(mat, n_dim=args.dim, distance=args.distance).coordinates[:, 1:]
 
     np.savetxt(args.output, res, delimiter='\t')
-
+    
 class Spectral:
     def __init__(self, mat, n_dim=30, sampling_rate=1, distance="jaccard"):
         self.sample = mat
