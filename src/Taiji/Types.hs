@@ -73,6 +73,7 @@ data TaijiConfig = TaijiConfig
     , _taiji_callpeak_fdr :: Maybe Double
     , _taiji_callpeak_genome_size :: Maybe String
     , _taiji_te_cutoff :: Maybe Double
+    , _taiji_scatac_minimal_fragment :: Int
     , _taiji_scrna_cell_barcode_length :: Maybe Int
     , _taiji_scrna_umi_length :: Maybe Int
     , _taiji_scrna_doublet_score_cutoff :: Double
@@ -119,6 +120,7 @@ instance FromJSON TaijiConfig where
                       | ass `elem` humanGenome -> Just "hs"
                       | otherwise -> Nothing )
             <*> v .:? "tss_enrichment_cutoff"
+            <*> v .:? "scatac_fragment_cutoff" .!= 1000
             <*> v .:? "scrna_cell_barcode_length"
             <*> v .:? "scrna_umi_length"
             <*> v .:? "scrna_doublet_score_cutoff" .!= 0.5
