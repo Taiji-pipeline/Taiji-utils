@@ -23,6 +23,10 @@ args.embed: embeding file.
 def mkKNNGraph(args):
     fls = args.input.split(',')
     adj = None
+
+    
+    adj = kneighbors_graph(readCoordinates(fls[0]), args.k, mode='distance', n_jobs=12)
+    """
     for fl in fls:
         mat = readCoordinates(fl)
         if (adj == None):
@@ -30,6 +34,7 @@ def mkKNNGraph(args):
         else:
             adj += kneighbors_graph(mat, args.k, mode='distance', n_jobs=args.thread)
     adj = adj / len(fls)
+    """
     np.reciprocal(adj.data, out=adj.data)
     sp.sparse.save_npz(args.output, adj)
 
@@ -42,12 +47,23 @@ def clustering(args):
     adj = sp.sparse.load_npz(args.input)
     vcount = max(adj.shape)
     sources, targets = adj.nonzero()
-    edgelist = list(zip(sources.tolist(), targets.tolist()))
+    if (args.perturb):
+        toDelete = set()
+        for i in range(vcount):
+            _, col = adj.getrow(i).nonzero()
+            idx = np.random.choice(col)
+            toDelete.add((i, idx))
+            toDelete.add((idx, i))
+        print("Perturbing ")
+        print(len(toDelete))
+        edges = filter(lambda x: x not in toDelete, zip(sources.tolist(), targets.tolist()))
+        sources, targets = zip(*edges)
+    edgelist = list(zip(list(sources), list(targets)))
     weights = np.ravel(adj[(sources, targets)])
     gr = ig.Graph(n=vcount, edges=edgelist, edge_attrs={"weight": weights})
 
     print("Start Clustering...")
-    partition = leiden(gr, resolution=args.res, optimizer=args.optimizer)
+    partition = leiden(gr, resolution=args.res, optimizer=args.optimizer, seed=args.seed)
 
     n = 0
     with open(args.output, 'w') as f:
@@ -75,8 +91,6 @@ def readCoordinates(fl, n_dim=None, discard=None, scale=None):
     return data
 
 def getEmbedding(mat, output):
-    e1 = umap.UMAP(random_state=42, n_components=2).fit_transform(mat)
-    e2 = umap.UMAP(random_state=42, n_components=3).fit_transform(mat)
-    embedding = np.concatenate((e1, e2), axis=1)
+    embedding = umap.UMAP(random_state=42, n_components=2).fit_transform(mat)
     np.savetxt(output, embedding, delimiter='\t')
 

@@ -35,6 +35,8 @@ parser_clust = subparsers.add_parser('clust', help='perform clustering')
 parser_clust.add_argument('input', type=str, help='adjacency matrix')
 parser_clust.add_argument('output', type=str, help='output file')
 parser_clust.add_argument('--res', type=float, default=1, help='resolution')
+parser_clust.add_argument('--perturb', type=float, help='perturb')
+parser_clust.add_argument('--seed', type=int, default=12343, help='seed')
 parser_clust.add_argument('--optimizer', type=str, default="RB", help='algorithm: RB, CPM')
 parser_clust.set_defaults(func=sc.clustering)
 
