@@ -9,10 +9,7 @@ from .Spectral import spectral
 from .Clustering import leiden
 
 def reduceDimension(args):
-    if args.method == "spectral":
-        spectral(args)
-    else:
-        print("Unknown method")
+    spectral(args)
 
 """
 args.input: a list of files.
@@ -35,6 +32,7 @@ def mkKNNGraph(args):
             adj += kneighbors_graph(mat, args.k, mode='distance', n_jobs=args.thread)
     adj = adj / len(fls)
     """
+
     np.reciprocal(adj.data, out=adj.data)
     sp.sparse.save_npz(args.output, adj)
 
@@ -55,7 +53,6 @@ def clustering(args):
             toDelete.add((i, idx))
             toDelete.add((idx, i))
         print("Perturbing ")
-        print(len(toDelete))
         edges = filter(lambda x: x not in toDelete, zip(sources.tolist(), targets.tolist()))
         sources, targets = zip(*edges)
     edgelist = list(zip(list(sources), list(targets)))

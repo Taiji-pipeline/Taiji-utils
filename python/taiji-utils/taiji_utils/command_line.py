@@ -2,6 +2,7 @@ import argparse
 import taiji_utils as sc
 
 from .Doublet import detectDoublet
+from .BatchCorrect import MNCCorrectMain
 
 ################################################################################
 ## ARGUMENT PARSER
@@ -14,7 +15,6 @@ subparsers = parser.add_subparsers(title="sub commands")
 parser_reduce = subparsers.add_parser('reduce', help='dimension reduction')
 parser_reduce.add_argument('input', type=str, help='gzipped input file')
 parser_reduce.add_argument('output', type=str, help='output matrix in .npy format')
-parser_reduce.add_argument('--method', help='algorithm: svd, spectral')
 parser_reduce.add_argument('--sample-size', default=35000, type=int, help='sampling size')
 parser_reduce.add_argument('--dim', default=30, type=int, help='number of dimension')
 parser_reduce.add_argument('--seed', default=3484, type=int, help='random seed')
@@ -45,6 +45,16 @@ parser_doublet = subparsers.add_parser('doublet', help='doublet detection')
 parser_doublet.add_argument('input', type=str, help='input matrix')
 parser_doublet.add_argument('output', type=str, help='output')
 parser_doublet.set_defaults(func=detectDoublet)
+
+# create the parser for the "correct" command
+parser_correct = subparsers.add_parser('correct', help='batch correction')
+parser_correct.add_argument('input', type=str, help='input matrix')
+parser_correct.add_argument('output', type=str, help='output')
+parser_correct.add_argument('--label', type=str, help='labels')
+parser_correct.add_argument('-k', type=int, default=20, help='number of centroids')
+parser_correct.add_argument('-n', type=int, default=2, help='number of nearest neighbors')
+parser_correct.add_argument('--iter', type=int, default=1, help='number of iterations')
+parser_correct.set_defaults(func=MNCCorrectMain)
 
 def main():
     args = parser.parse_args()
