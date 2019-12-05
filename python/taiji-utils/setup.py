@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='taiji-utils',
-      version='0.1.1',
+      version='0.1.2',
       description='Taiji pipeline',
       url='https://taiji-pipeline.github.io/', 
       author='Kai Zhang',

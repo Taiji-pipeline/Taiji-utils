@@ -21,9 +21,7 @@ def mkKNNGraph(args):
     fls = args.input.split(',')
     adj = None
 
-    
-    adj = kneighbors_graph(readCoordinates(fls[0]), args.k, mode='distance', n_jobs=12)
-    """
+    #adj = kneighbors_graph(readCoordinates(fls[0]), args.k, mode='distance', n_jobs=12)
     for fl in fls:
         mat = readCoordinates(fl)
         if (adj == None):
@@ -31,7 +29,6 @@ def mkKNNGraph(args):
         else:
             adj += kneighbors_graph(mat, args.k, mode='distance', n_jobs=args.thread)
     adj = adj / len(fls)
-    """
 
     np.reciprocal(adj.data, out=adj.data)
     sp.sparse.save_npz(args.output, adj)

@@ -23,6 +23,7 @@ module Taiji.Prelude
     , readDouble
     , readInt
     , toShortest
+    , packDecimal
     ) where
 
 import           Bio.Data.Experiment
@@ -40,6 +41,7 @@ import           Taiji.Types
 import           Control.Monad.Reader              (asks, ReaderT, liftIO)
 import Text.Printf (printf)
 import Data.Double.Conversion.ByteString (toShortest)
+import Data.ByteString.Lex.Integral (packDecimal)
 
 (%%~) ::  LensLike f s t a b -> (a -> f b) -> s -> f t
 (%%~) = id
