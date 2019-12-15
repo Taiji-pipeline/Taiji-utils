@@ -1,90 +1,62 @@
-import scipy as sp
-import numpy as np
-import math
-from sklearn.neighbors import kneighbors_graph
-import igraph as ig
-import umap
+import argparse
 
+from .Clustering import clustering, mkKNNGraph
 from .Spectral import spectral
-from .Clustering import leiden
+from .Doublet import detectDoublet
+from .BatchCorrect import MNCCorrectMain
 
-def reduceDimension(args):
-    spectral(args)
+################################################################################
+## ARGUMENT PARSER
+################################################################################
 
-"""
-args.input: a list of files.
-args.k: number of neighbours.
-args.output: output file.
-args.embed: embeding file.
-"""
-def mkKNNGraph(args):
-    fls = args.input.split(',')
-    adj = None
+parser = argparse.ArgumentParser(description="Python scripts for the Taiji pipeline")
+subparsers = parser.add_subparsers(title="sub commands")
 
-    #adj = kneighbors_graph(readCoordinates(fls[0]), args.k, mode='distance', n_jobs=12)
-    for fl in fls:
-        mat = readCoordinates(fl)
-        if (adj == None):
-            adj = kneighbors_graph(mat, args.k, mode='distance', n_jobs=args.thread)
-        else:
-            adj += kneighbors_graph(mat, args.k, mode='distance', n_jobs=args.thread)
-    adj = adj / len(fls)
+# create the parser for the "reduce" command
+parser_reduce = subparsers.add_parser('reduce', help='dimension reduction')
+parser_reduce.add_argument('input', type=str, help='gzipped input file')
+parser_reduce.add_argument('output', type=str, help='output matrix in .npy format')
+parser_reduce.add_argument('--sample-size', default=35000, type=int, help='sampling size')
+parser_reduce.add_argument('--dim', default=30, type=int, help='number of dimension')
+parser_reduce.add_argument('--seed', default=3484, type=int, help='random seed')
+parser_reduce.add_argument('--distance', default="jaccard", type=str, help='distance: jaccard or cosine')
+parser_reduce.set_defaults(func=spectral)
 
-    np.reciprocal(adj.data, out=adj.data)
-    sp.sparse.save_npz(args.output, adj)
+# create the parser for the "knn" command
+parser_knn = subparsers.add_parser('knn', help='Make KNN graph')
+parser_knn.add_argument('input', type=str, help='input matrix in .npy format')
+parser_knn.add_argument('output', type=str, help='adjacency matrix')
+parser_knn.add_argument('-k', default=50, type=int, help='neighbors')
+parser_knn.add_argument('--embed', help='embedding file')
+parser_knn.add_argument('--thread', default=1, type=int, help='number of jobs')
+parser_knn.set_defaults(func=mkKNNGraph)
 
-    if(args.embed):
-        print("Create Embedding:")
-        data = readCoordinates(fls[0])
-        getEmbedding(data, args.embed)
+# create the parser for the "clust" command
+parser_clust = subparsers.add_parser('clust', help='perform clustering')
+parser_clust.add_argument('input', type=str, help='adjacency matrix')
+parser_clust.add_argument('output', type=str, help='output file')
+parser_clust.add_argument('--res', type=float, default=1, help='resolution')
+parser_clust.add_argument('--perturb', type=float, help='perturb')
+parser_clust.add_argument('--seed', type=int, default=12343, help='seed')
+parser_clust.add_argument('--optimizer', type=str, default="RB", help='algorithm: RB, CPM')
+parser_clust.set_defaults(func=clustering)
 
-def clustering(args):
-    adj = sp.sparse.load_npz(args.input)
-    vcount = max(adj.shape)
-    sources, targets = adj.nonzero()
-    if (args.perturb):
-        toDelete = set()
-        for i in range(vcount):
-            _, col = adj.getrow(i).nonzero()
-            idx = np.random.choice(col)
-            toDelete.add((i, idx))
-            toDelete.add((idx, i))
-        print("Perturbing ")
-        edges = filter(lambda x: x not in toDelete, zip(sources.tolist(), targets.tolist()))
-        sources, targets = zip(*edges)
-    edgelist = list(zip(list(sources), list(targets)))
-    weights = np.ravel(adj[(sources, targets)])
-    gr = ig.Graph(n=vcount, edges=edgelist, edge_attrs={"weight": weights})
+# create the parser for the "doublet" command
+parser_doublet = subparsers.add_parser('doublet', help='doublet detection')
+parser_doublet.add_argument('input', type=str, help='input matrix')
+parser_doublet.add_argument('output', type=str, help='output')
+parser_doublet.set_defaults(func=detectDoublet)
 
-    print("Start Clustering...")
-    partition = leiden(gr, resolution=args.res, optimizer=args.optimizer, seed=args.seed)
+# create the parser for the "correct" command
+parser_correct = subparsers.add_parser('correct', help='batch correction')
+parser_correct.add_argument('input', type=str, help='input matrix')
+parser_correct.add_argument('output', type=str, help='output')
+parser_correct.add_argument('--label', type=str, help='labels')
+parser_correct.add_argument('-k', type=int, default=20, help='number of centroids')
+parser_correct.add_argument('-n', type=int, default=2, help='number of nearest neighbors')
+parser_correct.add_argument('--iter', type=int, default=1, help='number of iterations')
+parser_correct.set_defaults(func=MNCCorrectMain)
 
-    n = 0
-    with open(args.output, 'w') as f:
-        cutoff = max(1, min(50, 0.001*vcount))
-        for c in partition:
-            if len(c) > cutoff:
-                n = n + 1
-                print(','.join(map(str, c)), file=f) 
-    print(n)
-
-def readCoordinates(fl, n_dim=None, discard=None, scale=None):
-    def scaling(xs):
-        s = 0
-        for x in xs:
-            s = s + x * x
-        s = math.sqrt(s)
-        return np.array([x / s for x in xs])
-    data = np.loadtxt(fl)
-    if (n_dim):
-        data = data[..., :n_dim]
-    if (discard):
-        data = data[..., 1:]
-    if (scale):
-        data = np.apply_along_axis(scaling, 1, data)
-    return data
-
-def getEmbedding(mat, output):
-    embedding = umap.UMAP(random_state=42, n_components=2).fit_transform(mat)
-    np.savetxt(output, embedding, delimiter='\t')
-
+def main():
+    args = parser.parse_args()
+    args.func(args)

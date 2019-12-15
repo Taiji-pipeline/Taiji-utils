@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='taiji-utils',
-      version='0.1.2',
+      version='0.1.3',
       description='Taiji pipeline',
       url='https://taiji-pipeline.github.io/', 
       author='Kai Zhang',
@@ -9,7 +9,7 @@ setup(name='taiji-utils',
       license='MIT',
       packages=['taiji_utils'],
       entry_points = {
-        'console_scripts': ['taiji-utils=taiji_utils.command_line:main'],
+        'console_scripts': ['taiji-utils=taiji_utils.__init__:main'],
       },
       install_requires=[
           'scipy',
