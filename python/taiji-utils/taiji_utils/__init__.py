@@ -4,6 +4,7 @@ from .Clustering import clustering, mkKNNGraph
 from .Spectral import spectral
 from .Doublet import detectDoublet
 from .BatchCorrect import MNCCorrectMain
+from .Viz import Viz
 
 ################################################################################
 ## ARGUMENT PARSER
@@ -36,6 +37,7 @@ parser_clust = subparsers.add_parser('clust', help='perform clustering')
 parser_clust.add_argument('input', type=str, help='adjacency matrix')
 parser_clust.add_argument('output', type=str, help='output file')
 parser_clust.add_argument('--res', type=float, default=1, help='resolution')
+parser_clust.add_argument('--min-cells', type=int, default=2, help='minimum number of cell in a cluster')
 parser_clust.add_argument('--perturb', type=float, help='perturb')
 parser_clust.add_argument('--seed', type=int, default=12343, help='seed')
 parser_clust.add_argument('--optimizer', type=str, default="RB", help='algorithm: RB, CPM')
@@ -56,6 +58,13 @@ parser_correct.add_argument('-k', type=int, default=20, help='number of centroid
 parser_correct.add_argument('-n', type=int, default=2, help='number of nearest neighbors')
 parser_correct.add_argument('--iter', type=int, default=1, help='number of iterations')
 parser_correct.set_defaults(func=MNCCorrectMain)
+
+# create the parser for the "viz" command
+parser_viz = subparsers.add_parser('viz', help='UMAP embedding')
+parser_viz.add_argument('input', type=str, help='input matrix')
+parser_viz.add_argument('output', type=str, help='output')
+parser_viz.add_argument('-k', type=int, default=50, help='number of neighbors')
+parser_viz.set_defaults(func=Viz)
 
 def main():
     args = parser.parse_args()

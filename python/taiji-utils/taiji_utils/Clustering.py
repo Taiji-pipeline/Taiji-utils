@@ -56,9 +56,9 @@ def clustering(args):
 
     n = 0
     with open(args.output, 'w') as f:
-        cutoff = max(1, min(50, 0.001*vcount))
+        cutoff = max(args.min_cells, min(50, 0.001*vcount))
         for c in partition:
-            if len(c) > cutoff:
+            if len(c) >= cutoff:
                 n = n + 1
                 print(','.join(map(str, c)), file=f) 
     print(n)
