@@ -15,7 +15,7 @@ def detectDoublet(args):
         min_gene_variability_pctl=85,
         mean_center=True,                                                                                                                                                                                                                                                                
         normalize_variance=True,
-        n_prin_comps=30
+        n_prin_comps=min(30, counts_matrix.get_shape()[0] // 10)
         )
 
     # Fit a Gaussian mixture model
@@ -27,7 +27,10 @@ def detectDoublet(args):
 
     probs_sim = gmm.predict_proba(X)[:,i]
     vals = X[np.argwhere(probs_sim>0.5)].flatten()
-    threshold = min(vals)
+    if vals.size == 0:
+        threshold = np.amax(X.flatten())
+    else:
+        threshold = min(vals)
 
     X = np.array([doublet_scores]).T
     probs = gmm.predict_proba(X)[:,i].tolist()

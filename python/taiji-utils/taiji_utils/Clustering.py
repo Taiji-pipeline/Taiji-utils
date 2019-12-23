@@ -19,10 +19,11 @@ def mkKNNGraph(args):
     #adj = kneighbors_graph(readCoordinates(fls[0]), args.k, mode='distance', n_jobs=12)
     for fl in fls:
         mat = readCoordinates(fl)
+        k = min(args.k, mat.shape[0]-1)
         if (adj == None):
-            adj = kneighbors_graph(mat, args.k, mode='distance', n_jobs=args.thread)
+            adj = kneighbors_graph(mat, k, mode='distance', n_jobs=args.thread)
         else:
-            adj += kneighbors_graph(mat, args.k, mode='distance', n_jobs=args.thread)
+            adj += kneighbors_graph(mat, k, mode='distance', n_jobs=args.thread)
     adj = adj / len(fls)
 
     np.reciprocal(adj.data, out=adj.data)
