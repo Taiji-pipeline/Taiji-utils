@@ -1,15 +1,26 @@
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE QuasiQuotes #-}
 
-module Taiji.Utils.Plot.Vega.Violin (violin) where
+module Taiji.Utils.Plot.Vega.Violin (violin, defaultAxis, Axis(..)) where
 
 import Language.Javascript.JMacro
 import qualified Data.Text as T
 
 import Taiji.Utils.Plot.Vega.Types
 
-violin :: [(T.Text, [Double])] -> Vega
-violin input = option [jmacroE| {
+data Axis = Axis
+    { _axis_type :: String
+    , _axis_title :: String
+    }
+
+defaultAxis :: Axis
+defaultAxis = Axis
+    { _axis_type = "linear"
+    , _axis_title = ""
+    }
+
+violin :: [(T.Text, [Double])] -> Axis -> Vega
+violin input axis = option [jmacroE| {
     $schema: "https://vega.github.io/schema/vega/v5.json",
     width: 500,
     padding: 5,
@@ -58,11 +69,11 @@ violin input = option [jmacroE| {
         domain: {data: "violin", field: "key"}
     }, {
         name: "xscale",
-        type: "linear",
+        type: `_axis_type axis`,
         range: "width",
         round: true,
         domain: {data: "violin", field: "value"},
-        zero: true,
+        zero: false,
         nice: true
     }, {
         name: "hscale",
@@ -79,6 +90,7 @@ violin input = option [jmacroE| {
     axes: [ {
         orient: "bottom",
         scale: "xscale",
+        title: `_axis_title axis`,
         zindex: 1
     }, {
         orient: "left",
