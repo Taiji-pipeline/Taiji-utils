@@ -21,6 +21,7 @@ module Taiji.Utils
     , sinkRows'
     , decodeRowWith
     , encodeRowWith
+    , colSum
 
     , filterCols
     , concatMatrix
@@ -184,6 +185,17 @@ encodeRowWith encoder (nm, xs) = B.intercalate "\t" $ nm : map f xs
   where
     f (i,v) = fromJust (packDecimal i) <> "," <> encoder v
 {-# INLINE encodeRowWith #-}
+
+colSum :: (Num a, U.Unbox a)
+       => SpMatrix a
+       -> IO (U.Vector a) 
+colSum mat = do
+    vec <- UM.replicate (_num_col mat) 0
+    runResourceT $ runConduit $ streamRows mat .| mapM_C (f vec)
+    U.unsafeFreeze vec
+  where
+    f vec (_, xs) = forM_ xs $ \(i, x) -> UM.unsafeModify vec (+x) i
+{-# INLINE colSum #-}
 
 filterCols :: FilePath   -- ^ New matrix
            -> [Int]      -- ^ Columns to be removed
