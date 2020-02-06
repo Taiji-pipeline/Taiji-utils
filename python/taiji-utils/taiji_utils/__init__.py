@@ -5,6 +5,7 @@ from .Spectral import spectral
 from .Doublet import detectDoublet
 from .BatchCorrect import MNCCorrectMain
 from .Viz import Viz
+from .Diff import diff
 
 ################################################################################
 ## ARGUMENT PARSER
@@ -65,6 +66,16 @@ parser_viz.add_argument('input', type=str, help='input matrix')
 parser_viz.add_argument('output', type=str, help='output')
 parser_viz.add_argument('-k', type=int, default=50, help='number of neighbors')
 parser_viz.set_defaults(func=Viz)
+
+# 
+parser_diff = subparsers.add_parser('diff', help='atac differential analysis')
+parser_diff.add_argument('input1', type=str, help='input matrix 1')
+parser_diff.add_argument('input2', type=str, help='input matrix 2')
+parser_diff.add_argument('--index', type=str, help='index')
+parser_diff.add_argument('--output', type=str, help='output')
+parser_diff.add_argument('--fold', type=float, help='log fold change cutoff')
+parser_diff.set_defaults(func=diff)
+
 
 def main():
     args = parser.parse_args()
