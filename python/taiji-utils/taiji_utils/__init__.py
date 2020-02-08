@@ -74,8 +74,8 @@ parser_diff.add_argument('input2', type=str, help='input matrix 2')
 parser_diff.add_argument('--index', type=str, help='index')
 parser_diff.add_argument('--output', type=str, help='output')
 parser_diff.add_argument('--fold', type=float, help='log fold change cutoff')
+parser_diff.add_argument('--thread', type=int, default=10, help='number of threads')
 parser_diff.set_defaults(func=diff)
-
 
 def main():
     args = parser.parse_args()
