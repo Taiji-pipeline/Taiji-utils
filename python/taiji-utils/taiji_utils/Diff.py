@@ -4,8 +4,6 @@ from scipy.stats import chi2
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import log_loss
 import statsmodels.api as sm
-from statsmodels.tools import add_constant
-from statsmodels.discrete.discrete_model import NegativeBinomial, Logit
 from statsmodels.stats.multitest import multipletests
 import math
 import multiprocessing as mp
@@ -13,13 +11,15 @@ import multiprocessing as mp
 from .Utils import InputData, readMatrix
 
 def diff(args):
-    fg = readMatrix(args.input1, binary=True)
-    (n1,m) = fg.shape
+    fg = readMatrix(args.input1, binary=False)
     fg_depth = np.log(np.sum(fg, axis=1))
+    fg_total = np.sum(fg) / 1000000
+    (n1,m) = fg.shape
 
-    bg = readMatrix(args.input2, binary=True)
-    n2, _ = bg.shape
+    bg = readMatrix(args.input2, binary=False)
     bg_depth = np.log(np.sum(bg, axis=1))
+    bg_total = np.sum(bg) / 1000000
+    n2, _ = bg.shape
 
     X = np.concatenate((fg_depth, bg_depth))
     z = np.array([1] * n1 + [0] * n2)[:, np.newaxis]
@@ -34,7 +34,7 @@ def diff(args):
     pool = mp.Pool(args.thread)
     for r in chunkIt(idx_set, 100):
         pool.apply_async(process,
-            args=(r, fg, bg, idx_set, args.fold, X, z),
+            args=(r, fg, bg, idx_set, math.log2(args.fold), X, z, fg_total, bg_total),
             callback = lambda x: result_list.append(x)
         ) 
     pool.close()
@@ -45,7 +45,7 @@ def diff(args):
         header='index\tfraction_1\tfraction_2\tlog2_fold_change\tp-value\tFDR',
         fmt='%i\t%.5f\t%.5f\t%.5f\t%1.4e\t%1.4e' )
 
-def process(r, fg, bg, idx_set, fd, X, z):
+def process(r, fg, bg, idx_set, fd, X, z, rc_fg, rc_bg):
     print(r)
     result = []
     for ii in range(r[0], r[1]):
@@ -53,21 +53,18 @@ def process(r, fg, bg, idx_set, fd, X, z):
         y_fg = fg[:, i].todense()
         y_bg = bg[:, i].todense()
 
-        f_fg = fraction(y_fg)
-        f_bg = fraction(y_bg)
+        f_fg = (np.sum(y_fg) + 1) / rc_fg
+        f_bg = (np.sum(y_bg) + 1) / rc_bg
         fold = math.log2(f_fg / f_bg)
 
         if fd == None or abs(fold) >= fd: 
-            Y = np.ravel(np.concatenate((y_fg, y_bg)))
+            Y = np.ravel(np.concatenate((np.clip(y_fg,0,1), np.clip(y_bg,0,1))))
             if np.sum(Y) == 0:
                 p = 1
             else:
                 p = likelihoodTest(X, Y, z)
             result.append([i, f_fg, f_bg, fold, p])
     return result
-
-def fraction(X):
-    return (np.count_nonzero(X) + 1) / (X.shape[0] + 1)
 
 def computeFDR(X):
     pvals = np.array([multipletests(X[:, 4], method='fdr_bh')[1]]).T
@@ -86,30 +83,6 @@ def likelihoodTest(X, Y, z):
     full = -log_loss(Y, model.predict_proba(X), normalize=False)
     chi = -2 * (reduced - full)
     return chi2.sf(chi, 1)
-
-def fitPoisson(X, Y):
-    return sm.GLM(Y, X, family=sm.families.Poisson()).fit()
-
-'''
-def fitNB(X, Y):
-    poisson_training_results = fitPoisson(X, Y)
-
-    # STEP 2: We will now fit the auxiliary OLS regression model on the data set and use the fitted model to get the value of α.
-    X_ = poisson_training_results.mu
-    Y_ = np.array(list(((b - a)**2 - b / a) for (a,b) in zip(X_, Y)))
-    X_ = add_constant(X_)
-    aux_olsr_results = sm.OLS(Y_, X_).fit()
-
-    # STEP 3: We supply the value of alpha found in STEP 2 into the statsmodels.genmod.families.family.NegativeBinomial class, and train the NB2 model on the training data set.
-    return sm.GLM(Y, X,family=sm.families.NegativeBinomial(alpha=aux_olsr_results.params[1])).fit()
-'''
-def fitNB(X, Y):
-    return NegativeBinomial(Y, X).fit()
-
-def fitLogistic(X, Y):
-    X = add_constant(X)
-    return Logit(Y, X).fit(maxiter=100, method="bfgs")
-
 
 def chunkIt(seq, num):
     n = len(seq)

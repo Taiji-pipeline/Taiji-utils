@@ -148,9 +148,9 @@ fetchGenome output assembly
 fetchAnnotation :: FilePath -> String -> IO ()
 fetchAnnotation output assembly
     | assembly == "GRCH38" || assembly == "HG38" = getUrl output 
-        "ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_31/gencode.v31.annotation.gtf.gz" True
+        "ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_33/gencode.v33.basic.annotation.gtf.gz" True
     | assembly `elem` ["GRCM38", "MM10", "MM_TEST"] = getUrl output 
-        "ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M22/gencode.vM22.annotation.gtf.gz" True
+        "ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M24/gencode.vM24.basic.annotation.gtf.gz" True
     | otherwise = error "Unknown assembly"
 
 fetchMotif :: FilePath -> String -> IO ()
