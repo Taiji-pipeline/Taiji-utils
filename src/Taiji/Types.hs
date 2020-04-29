@@ -124,10 +124,13 @@ instance FromJSON TaijiConfig where
             <*> v .:? "scrna_cell_barcode_length"
             <*> v .:? "scrna_umi_length"
             <*> v .:? "scrna_doublet_score_cutoff" .!= 0.5
-            <*> v .:? "bwa_index" .!= (genomeDir ++ "BWA_index/")
+            <*> v .:? "bwa_index" .!=
+                (genomeDir <> "BWA_index/" <> fromMaybe "genome" assembly <> ".fa")
             <*> v .:? "star_index" .!= (genomeDir ++ "STAR_index/")
-            <*> v .:? "genome_index" .!= (genomeDir ++ "genome.index")
-            <*> v .:? "rsem_index" .!= (genomeDir ++ "RSEM_index/")
+            <*> v .:? "genome_index" .!=
+                (genomeDir <> fromMaybe "genome" assembly <> ".index")
+            <*> v .:? "rsem_index" .!=
+                (genomeDir <> "RSEM_index/" <> fromMaybe "genome" assembly)
 
 mouseGenome :: [String]
 mouseGenome = ["GRCM38", "MM10"]
