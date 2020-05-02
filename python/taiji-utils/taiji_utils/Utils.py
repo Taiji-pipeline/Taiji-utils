@@ -38,5 +38,8 @@ def readMatrix(fl, binary=False):
             else:
                 mat.append(x)
         indptr.append(len(indices))
-    mat = sp.sparse.csr_matrix((mat, indices, indptr), shape=(data.num_doc, data.num_terms), dtype=int)
+    if (binary):
+        mat = sp.sparse.csr_matrix((mat, indices, indptr), shape=(data.num_doc, data.num_terms), dtype=int)
+    else:
+        mat = sp.sparse.csr_matrix((mat, indices, indptr), shape=(data.num_doc, data.num_terms), dtype=float).log1p()
     return mat
