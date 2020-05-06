@@ -5,6 +5,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE PartialTypeSignatures #-}
+{-# OPTIONS_GHC -Wno-partial-type-signatures #-}
 module Taiji.Utils.Matrix
     ( SpMatrix(..)
     , Row
@@ -12,6 +13,7 @@ module Taiji.Utils.Matrix
     , mkSpMatrixMM
     , transformation
     , saveMatrix
+    , saveMatrixMM
     , streamRows
     , sinkRows
     , sinkRows'
@@ -28,7 +30,7 @@ module Taiji.Utils.Matrix
 import Data.Conduit.Zlib (multiple, ungzip, gzip)
 import Data.ByteString.Lex.Integral (packDecimal)
 import Control.Arrow (first, second)
-import Data.Conduit.Internal (zipSinks)
+import Data.Conduit.Internal (zipSinks, zipSources)
 import qualified Data.Conduit.List as L (groupBy)
 import Data.List (foldl', sort)
 import           Bio.Utils.Misc          (readInt)
@@ -38,9 +40,9 @@ import qualified Data.Vector.Unboxed as U
 import qualified Data.Vector.Unboxed.Mutable as UM
 import qualified Data.Vector as V
 import qualified Data.Set as S
-import Data.Matrix.Static.Sparse (toTriplet, dim, SparseMatrix(..))
-import Data.Matrix.Static.IO (fromMM')
-import Data.Matrix.Static.Generic (Dynamic(..))
+import Data.Matrix.Static.Sparse (toTriplet, SparseMatrix(..))
+import Data.Matrix.Static.IO (fromMM', toMM)
+import Data.Matrix.Dynamic (fromTriplet, Dynamic(..))
 import Text.Printf (printf)
 
 import Taiji.Prelude
@@ -78,8 +80,8 @@ mkSpMatrixMM fl barcodes = do
     [m,n,_] <- fmap (B.words . fromJust) $ runResourceT $ runConduit $ sourceFile fl .|
         multiple ungzip .| linesUnboundedAsciiC .|
         filterC (not . (=='%') . B.head) .| headC
-    return $ SpMatrix (readInt n) (readInt m) fl $ \fl -> do
-        Dynamic mat@(SparseMatrix _ _ _) <- sourceFile fl .| multiple ungzip .| fromMM'
+    return $ SpMatrix (readInt n) (readInt m) fl $ \x -> do
+        Dynamic mat@(SparseMatrix _ _ _) <- sourceFile x .| multiple ungzip .| fromMM'
         toTriplet (mat :: SparseMatrix _ _ U.Vector Int) .|
             L.groupBy ((==) `on` (^._2)) .| mapC f
   where
@@ -100,6 +102,20 @@ saveMatrix :: FilePath
 saveMatrix output f mat = runResourceT $ runConduit $ streamRows mat .|
     sinkRows (_num_row mat) (_num_col mat) f output
 {-# INLINE saveMatrix #-}
+
+saveMatrixMM :: FilePath
+             -> SpMatrix Int
+             -> IO ()
+saveMatrixMM output mat = do
+    vec <- runResourceT $ runConduit $
+        zipSources (iterateC succ 0) (streamRows mat) .| 
+        concatMapC f .| sinkVector :: IO (U.Vector (Int,Int,Int))
+    case fromTriplet (_num_row mat, _num_col mat) vec of
+        Dynamic m -> runResourceT $ runConduit $
+            toMM (m :: SparseMatrix _ _ U.Vector Int) .| gzip .| sinkFile output
+  where
+    f (i, (_, xs)) = map (\(j,x) -> (i,j,x)) xs
+{-# INLINE saveMatrixMM #-}
 
 streamRows :: SpMatrix a -> ConduitT () (Row a) (ResourceT IO) ()
 streamRows SpMatrix{..} = _streamer _source

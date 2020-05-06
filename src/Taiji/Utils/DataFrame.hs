@@ -10,6 +10,7 @@ module Taiji.Utils.DataFrame
     , Taiji.Utils.DataFrame.transpose
     , rbind
     , cbind
+    , cjoin
     , rowNames
     , colNames
     , ReodrderFn
@@ -49,6 +50,7 @@ import Data.Maybe
 import qualified Data.Matrix            as M
 import qualified Data.Vector            as V
 import qualified Data.HashMap.Strict    as HM
+import qualified Data.HashSet as HS
 import Statistics.Correlation (pearsonMatByRow, spearmanMatByRow)
 import Statistics.Matrix (toRowLists, fromRowLists)
 
@@ -154,6 +156,14 @@ rbind dfs | allTheSame (L.map _dataframe_col_names dfs) = (head dfs)
   where
     allTheSame xs = all (== head xs) (tail xs)
     row_names = V.concat $ L.map (_dataframe_row_names) dfs
+
+cjoin :: DataFrame a -> DataFrame a -> DataFrame a
+cjoin df1 df2 = mkDataFrame rownames (colNames df1 ++ colNames df2) $
+    flip L.map rownames $ \nm ->
+        V.toList (df1 `rindex` nm) ++ V.toList (df2 `rindex` nm) 
+  where
+    rownames = HS.toList $ HS.fromList (rowNames df1) `HS.intersection`
+        HS.fromList (rowNames df2)
 
 cbind :: [DataFrame a] -> DataFrame a
 cbind dfs | allTheSame (L.map _dataframe_row_names dfs) = (head dfs)
