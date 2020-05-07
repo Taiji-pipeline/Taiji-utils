@@ -149,7 +149,7 @@ computeCDF df = do
     mkCDF res = do
         vec <- VM.replicate n 0
         mapM_C $ \x -> do
-          let i = min n $ truncate $ x / res
+          let i = min (n-1) $ truncate $ x / res
           VM.unsafeModify vec (+1) i
         v <- V.scanl1' (+) <$> V.unsafeFreeze vec
         return (V.map (/(V.last v)) v, res, fromIntegral $ nSample*ncol)

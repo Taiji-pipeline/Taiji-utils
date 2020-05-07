@@ -110,11 +110,12 @@ saveMatrixMM output mat = do
     vec <- runResourceT $ runConduit $
         zipSources (iterateC succ 0) (streamRows mat) .| 
         concatMapC f .| sinkVector :: IO (U.Vector (Int,Int,Int))
-    case fromTriplet (_num_row mat, _num_col mat) vec of
+    case fromTriplet (_num_col mat, _num_row mat) vec of
         Dynamic m -> runResourceT $ runConduit $
-            toMM (m :: SparseMatrix _ _ U.Vector Int) .| gzip .| sinkFile output
+            toMM (m :: SparseMatrix _ _ U.Vector Int) .|
+            gzip .| sinkFile output
   where
-    f (i, (_, xs)) = map (\(j,x) -> (i,j,x)) xs
+    f (i, (_, xs)) = map (\(j,x) -> (j,i,x)) xs
 {-# INLINE saveMatrixMM #-}
 
 streamRows :: SpMatrix a -> ConduitT () (Row a) (ResourceT IO) ()
