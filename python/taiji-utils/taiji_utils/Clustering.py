@@ -1,6 +1,7 @@
 import scipy as sp
 import numpy as np
 import math
+import itertools
 import leidenalg as la
 from sklearn.neighbors import kneighbors_graph
 import igraph as ig
@@ -37,37 +38,53 @@ def mkKNNGraph(args):
         getEmbedding(data, args.embed)
 
 def clustering(args):
-    partition = runClustering(args.input, args.res, args.optimizer, args.seed)
-    nCl = 0
-    vcount = 0
-    for c in partition:
-        vcount = vcount + len(c)
-    with open(args.output, 'w') as f:
-        cutoff = max(args.min_cells, min(50, 0.001*vcount))
-        for c in partition:
-            if len(c) >= cutoff:
-                nCl = nCl + 1
-                print(','.join(map(str, c)), file=f) 
-    print(nCl)
     if (args.stability):
-        pool = mp.Pool(5)
         result = []
-        for _ in range(5):
+        pool = mp.Pool(5)
+        for i in range(5):
             pool.apply_async(runClustering,
-                args=(args.input, True),
+                args=(args.input, args.res, args.optimizer, i, True),
                 callback = lambda x: result.append(x)
             ) 
         pool.close()
         pool.join()
-        print(ari(result))
+        with open(args.output, 'w') as f:
+            print(ari(result), file=f)
+    else:
+        partition = runClustering(args.input, args.res, args.optimizer, args.seed)
+        nCl = 0
+        vcount = 0
+        for c in partition:
+            vcount = vcount + len(c)
+        with open(args.output, 'w') as f:
+            cutoff = max(args.min_cells, min(50, 0.001*vcount))
+            for c in partition:
+                if len(c) >= cutoff:
+                    nCl = nCl + 1
+                    print(','.join(map(str, c)), file=f) 
+        print(nCl)
 
 def ari(cls):
+    num = []
+    new = []
+    for cl in cls:
+        n = len(cl)
+        num.append(n)
+        i = 0
+        cl_ = []
+        for c in cl:
+            for _ in c: cl_.append(i)
+            i = i + 1
+        new.append(cl_)
+    average_num = sum(num) / len(num)
+    cls = new
     n = len(cls)
     scores = []
     for i in range(n):
         for j in range(i+1, n):
             scores.append(adjusted_rand_score(cls[i], cls[j]))
-    return sum(scores) / len(scores)
+    average_score = sum(scores) / len(scores)
+    return(average_num, average_score)
 
 def runClustering(input, res, opti, seed, perturb=False):
     adj = sp.sparse.load_npz(input)
@@ -75,6 +92,7 @@ def runClustering(input, res, opti, seed, perturb=False):
     sources, targets = adj.nonzero()
     if (perturb):
         toDelete = set()
+        np.random.seed(seed)
         for i in range(vcount):
             _, col = adj.getrow(i).nonzero()
             idx = np.random.choice(col)
@@ -88,7 +106,7 @@ def runClustering(input, res, opti, seed, perturb=False):
     gr = ig.Graph(n=vcount, edges=edgelist, edge_attrs={"weight": weights})
 
     print("Start Clustering...")
-    return leiden(gr, resolution=res, optimizer=opti, seed=seed)
+    return(list(leiden(gr, resolution=res, optimizer=opti, seed=seed)))
 
 '''
     n = 0
