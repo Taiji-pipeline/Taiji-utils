@@ -72,12 +72,14 @@ data TaijiConfig = TaijiConfig
     , _taiji_blacklist :: Maybe FilePath
     , _taiji_callpeak_fdr :: Maybe Double
     , _taiji_callpeak_genome_size :: Maybe String
-    , _taiji_te_cutoff :: Maybe Double
+    , _taiji_scatac_te_cutoff :: Maybe Double
     , _taiji_scatac_minimal_fragment :: Int
     , _taiji_scrna_cell_barcode_length :: Maybe Int
     , _taiji_scrna_umi_length :: Maybe Int
     , _taiji_scrna_doublet_score_cutoff :: Double
+    , _taiji_scrna_cluster_resolutions :: [Double]
     , _taiji_bwa_index    :: FilePath
+    , _taiji_bwa_seed_length :: Int
     , _taiji_star_index   :: FilePath
     , _taiji_genome_index :: FilePath
     , _taiji_rsem_index   :: FilePath
@@ -101,7 +103,7 @@ instance FromJSON TaijiConfig where
                 Just (String x) -> Just $ T.unpack $ T.toUpper x
                 _ -> Nothing
         TaijiConfig
-            <$> v .: "output_dir"
+            <$> v .:? "output_dir" .!= "output/"
             <*> v .: "input"
             <*> return assembly
             <*> v .:? "genome" .!= fmap (\x -> genomeDir ++ x ++ ".fasta") assembly
@@ -124,8 +126,10 @@ instance FromJSON TaijiConfig where
             <*> v .:? "scrna_cell_barcode_length"
             <*> v .:? "scrna_umi_length"
             <*> v .:? "scrna_doublet_score_cutoff" .!= 0.5
+            <*> v .:? "scrna_cluster_resolutions" .!= [1]
             <*> v .:? "bwa_index" .!=
                 (genomeDir <> "BWA_index/" <> fromMaybe "genome" assembly <> ".fa")
+            <*> v .:? "bwa_seed_length" .!= 32
             <*> v .:? "star_index" .!= (genomeDir ++ "STAR_index/")
             <*> v .:? "genome_index" .!=
                 (genomeDir <> fromMaybe "genome" assembly <> ".index")

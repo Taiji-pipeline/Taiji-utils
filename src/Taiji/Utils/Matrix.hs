@@ -17,13 +17,18 @@ module Taiji.Utils.Matrix
     , streamRows
     , sinkRows
     , sinkRows'
+    , sampleRows
     , decodeRowWith
     , encodeRowWith
     , colSum
     , meanVariance
 
+    , mapRows
+    , deleteCols
+    , deleteRows
     , filterCols
     , concatMatrix
+    , concatMatrix'
     , mergeMatrices
     ) where
 
@@ -36,6 +41,7 @@ import Data.List (foldl', sort)
 import           Bio.Utils.Misc          (readInt)
 import qualified Data.Text as T
 import qualified Data.ByteString.Char8 as B
+import qualified Data.IntSet as IS
 import qualified Data.Vector.Unboxed as U
 import qualified Data.Vector.Unboxed.Mutable as UM
 import qualified Data.Vector as V
@@ -43,6 +49,8 @@ import qualified Data.Set as S
 import Data.Matrix.Static.Sparse (toTriplet, SparseMatrix(..))
 import Data.Matrix.Static.IO (fromMM', toMM)
 import Data.Matrix.Dynamic (fromTriplet, Dynamic(..))
+import System.Random.MWC.Distributions (uniformPermutation)
+import System.Random.MWC
 import Text.Printf (printf)
 
 import Taiji.Prelude
@@ -122,6 +130,13 @@ streamRows :: SpMatrix a -> ConduitT () (Row a) (ResourceT IO) ()
 streamRows SpMatrix{..} = _streamer _source
 {-# INLINE streamRows #-}
 
+mapRows :: (Row a -> Row b)
+        -> SpMatrix a
+        -> SpMatrix b
+mapRows f SpMatrix{..} = SpMatrix _num_row _num_col _source $ \s -> 
+    _streamer s .| mapC f
+{-# INLINE mapRows #-}
+
 sinkRows :: Int   -- ^ Number of rows
          -> Int   -- ^ Number of cols
          -> (a -> B.ByteString) 
@@ -146,6 +161,7 @@ sinkRows' m encoder output = do
   where
     sink = unlinesAsciiC .| sinkTempFile "./" "tmp" 
 {-# INLINE sinkRows' #-}
+
   
 decodeRowWith :: (B.ByteString -> a) -> B.ByteString -> Row a
 decodeRowWith decoder x = (nm, map f values)
@@ -188,27 +204,37 @@ meanVariance mat = do
         s = foldl1' (+) (map snd xs) / 10000
 {-# INLINE meanVariance #-}
 
-{-
 deleteCols :: [Int]      -- ^ Columns to be removed
            -> SpMatrix a
            -> SpMatrix a
-deleteCols idx mat = do
-    let header = B.pack $ printf "Sparse matrix: %d x %d" (_num_row mat) (_num_col mat - length idx)
-        newIdx = U.scan f 0 $ U.enumFromN 0 (_num_col mat)
-        f acc x | x `S.member` idx' = x
-                | otherwise = x + 1
-
-U.fromList $ zipWith (-) [0 .. _num_col mat - 1] $ go (-1,0) (sort idx)
-        f = map (first (newIdx U.!)) . filter (not . (`S.member` idx') . fst)
-        idx' = S.fromList idx
-    runResourceT $ runConduit $ streamRows mat .| mapC (second f) .|
-        (yield header >> mapC (encodeRowWith id)) .| unlinesAsciiC .|
-        gzip .| sinkFile output
+deleteCols idx mat = (mapRows (second changeIdx) mat){_num_col = _num_col mat - length idx}
   where
-    go (prev, c) (i:x) = replicate (i-prev) c ++ go (i, c+1) x
-    go (_, c) [] = repeat c
--}
+    changeIdx = filter ((>=0) . fst) . map (first (newIdx U.!))
+    idx' = S.fromList idx
+    newIdx = U.reverse $ U.unfoldr f (0,0)
+    f (i, acc) | i >= _num_col mat = Nothing
+               | i `S.member` idx' = Just (-1, (i+1, acc))
+               | otherwise = Just (acc, (i+1, acc+1))
+{-# INLINE deleteCols #-}
 
+deleteRows :: [Int]  -- ^ Rows to be removed
+           -> SpMatrix a -> SpMatrix a
+deleteRows idx SpMatrix{..} = SpMatrix (_num_row - length idx) _num_col _source $ \s ->
+    zipSources (iterateC succ 0) (_streamer s) .| filterC f .| mapC snd
+  where
+    f (i,_) = not $ i `IS.member` idx'
+    idx' = IS.fromList idx
+{-# INLINE deleteRows #-}
+
+sampleRows :: PrimMonad m
+           => Int -> SpMatrix a -> Gen (PrimState m) -> m (SpMatrix a)
+sampleRows n mat gen
+    | n >= _num_row mat = return mat
+    | otherwise = do
+        toRemove <- U.toList . U.take (_num_row mat - n) <$>
+            uniformPermutation (_num_row mat) gen
+        return $ deleteRows toRemove mat
+{-# INLINE sampleRows #-}
 
 filterCols :: FilePath   -- ^ New matrix
            -> [Int]      -- ^ Columns to be removed
@@ -226,6 +252,16 @@ filterCols output idx input = do
   where
     go (prev, c) (i:x) = replicate (i-prev) c ++ go (i, c+1) x
     go (_, c) [] = repeat c
+
+concatMatrix' :: [SpMatrix a]
+              -> SpMatrix a
+concatMatrix' mats
+    | any (/=nCol) (map _num_col mats) = error "Column unmatched!"
+    | otherwise = SpMatrix nRow nCol mats $ mapM_ streamRows
+  where
+    nRow = sum $ map _num_row mats
+    nCol = _num_col $ head mats
+{-# INLINE concatMatrix' #-}
 
 -- | Combine rows of matrices. The matrices should have same column names.
 concatMatrix :: FilePath   -- ^ Output merged matrix

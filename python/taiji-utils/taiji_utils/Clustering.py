@@ -49,7 +49,8 @@ def clustering(args):
         pool.close()
         pool.join()
         with open(args.output, 'w') as f:
-            print(ari(result), file=f)
+            n, s = ari(result)
+            print(str(n) + "\t" + str(s), file=f)
     else:
         partition = runClustering(args.input, args.res, args.optimizer, args.seed)
         nCl = 0
