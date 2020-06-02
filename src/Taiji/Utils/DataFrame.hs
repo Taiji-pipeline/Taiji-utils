@@ -6,6 +6,7 @@ module Taiji.Utils.DataFrame
     , DataFrameIndex(..)
     , mkDataFrame
     , fromMatrix
+    , dim
     , isEmpty
     , Taiji.Utils.DataFrame.transpose
     , rbind
@@ -141,6 +142,9 @@ instance DataFrameIndex T.Text where
             _dataframe_row_names_idx df
         j = HM.lookupDefault (error $ "index doesn't exist: " ++ T.unpack b) b $
             _dataframe_col_names_idx df
+
+dim :: DataFrame a -> (Int, Int)
+dim df = M.dim $ _dataframe_data df
 
 isEmpty :: DataFrame a -> Bool
 isEmpty df = r == 0 || c == 0

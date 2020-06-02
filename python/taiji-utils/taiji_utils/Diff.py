@@ -31,15 +31,20 @@ def diff(args):
             idx_set = list(set([int(l.strip()) for l in fl]))
 
     result_list = []
+    '''
     pool = mp.Pool(args.thread)
-    for r in chunkIt(idx_set, 100):
+    for r in chunkIt(idx_set, 20):
         pool.apply_async(process,
             args=(r, fg, bg, idx_set, math.log2(args.fold), X, z, fg_total, bg_total),
-            callback = lambda x: result_list.append(x)
+            callback = lambda x: result_list.append(x),
+            error_callback = lambda x: print(x)
         ) 
     pool.close()
     pool.join()
-
+    '''
+    for r in chunkIt(idx_set, 20):
+        x = process(r, fg, bg, idx_set, math.log2(args.fold), X, z, fg_total, bg_total)
+        result_list.append(x)
     result = list(itertools.chain.from_iterable(result_list))
     np.savetxt( args.output, computeFDR(np.array(result)),
         header='index\tfraction_1\tfraction_2\tlog2_fold_change\tp-value\tFDR',
@@ -67,8 +72,11 @@ def process(r, fg, bg, idx_set, fd, X, z, rc_fg, rc_bg):
     return result
 
 def computeFDR(X):
-    pvals = np.array([multipletests(X[:, 4], method='fdr_bh')[1]]).T
-    return np.append(X, pvals, axis=1)
+    if X.size == 0:
+        return X
+    else:
+        pvals = np.array([multipletests(X[:, 4], method='fdr_bh')[1]]).T
+        return np.append(X, pvals, axis=1)
 
 def likelihoodTest(X, Y, z):
     model = LogisticRegression(penalty="none", random_state=0, n_jobs=1,

@@ -11,6 +11,8 @@ module Taiji.Utils
     , readExpression
     , lp
 
+    , readGenesValidated
+
     , computeRAS
     , computeSS
     , computeCDF
@@ -41,11 +43,21 @@ import qualified Data.Vector.Mutable as VM
 import System.Random.MWC.Distributions
 import System.Random.MWC
 import Statistics.Sample (varianceUnbiased, mean)
+import Bio.RealWorld.GENCODE (readGenes, Gene(..))
 
 import Taiji.Utils.Plot.ECharts
 import Taiji.Utils.Matrix
 import qualified Taiji.Utils.DataFrame as DF
 import Taiji.Prelude
+
+readGenesValidated :: FilePath -> IO [Gene]
+readGenesValidated = fmap validate . readGenes
+  where
+    validate xs
+        | null xs = error "No gene was found in the annotation file"
+        | all (null . geneTranscripts) xs = error "No transcript was found in the annotation file"
+        | otherwise = xs
+{-# INLINE readGenesValidated #-}
 
 -- | Open bigbed files.
 openBBs :: [(B.ByteString, Maybe (File '[] 'BigBed))]
