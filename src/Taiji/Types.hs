@@ -67,7 +67,7 @@ data TaijiConfig = TaijiConfig
     , _taiji_motif_file   :: Maybe FilePath
     , _taiji_tmp_dir      :: Maybe FilePath
     , _taiji_external_network :: Maybe FilePath
-    , _taiji_cluster_resolution :: Double
+    , _taiji_scatac_cluster_resolutions :: [Double]
     , _taiji_cluster_optimizer :: Optimizer
     , _taiji_blacklist :: Maybe FilePath
     , _taiji_callpeak_fdr :: Maybe Double
@@ -111,7 +111,7 @@ instance FromJSON TaijiConfig where
             <*> v .:? "motif_file" .!= fmap (\x -> genomeDir ++ x ++ ".meme") assembly
             <*> v .:? "tmp_dir"
             <*> v .:? "external_network"
-            <*> v .:? "cluster_resolution" .!= 1
+            <*> v .:? "scatac_cluster_resolutions" .!= [1]
             <*> v .:? "cluster_optimizer" .!= RBConfiguration
             <*> v .:? "blacklist"
             <*> v .:? "callpeak_fdr"
@@ -283,7 +283,7 @@ instance NFData Cell
 
 data Optimizer = RBConfiguration
                | CPM
-               deriving (Generic)
+               deriving (Show, Generic)
 instance Binary Optimizer
 instance FromJSON Optimizer
 instance ToJSON Optimizer
