@@ -19,7 +19,9 @@ module Taiji.Utils.DataFrame
     , reorderRows
     , Taiji.Utils.DataFrame.map
     , mapRows
+    , imapRows
     , mapCols
+    , imapCols
     , filterRows
     , filterCols
     , Taiji.Utils.DataFrame.zip
@@ -208,9 +210,16 @@ mapRows :: (V.Vector a -> V.Vector b) -> DataFrame a -> DataFrame b
 mapRows fn df = df
     { _dataframe_data = M.fromRows $ L.map fn $ M.toRows $ _dataframe_data df }
 
+imapRows :: (T.Text -> V.Vector a -> V.Vector b) -> DataFrame a -> DataFrame b
+imapRows fn df = df{ _dataframe_data = M.fromRows $ L.zipWith fn (rowNames df) $ M.toRows $ _dataframe_data df}
+
 mapCols :: (V.Vector a -> V.Vector b) -> DataFrame a -> DataFrame b
 mapCols fn df = df
     { _dataframe_data = M.fromColumns $ L.map fn $ M.toColumns $ _dataframe_data df }
+
+imapCols :: (T.Text -> V.Vector a -> V.Vector b) -> DataFrame a -> DataFrame b
+imapCols fn df = df
+    { _dataframe_data = M.fromColumns $ L.zipWith fn (colNames df) $ M.toColumns $ _dataframe_data df }
 
 filterRows :: (T.Text -> V.Vector a -> Bool) -> DataFrame a -> DataFrame a
 filterRows fn df = df
