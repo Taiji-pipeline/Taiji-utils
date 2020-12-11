@@ -46,6 +46,7 @@ library
                      , bioinformatics-toolkit >= 0.5.0
                      , bbi
                      , bytestring
+                     , vector-binary-instances
                      , bytestring-lexing
                      , blaze-html
                      , containers

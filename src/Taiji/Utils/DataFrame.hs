@@ -1,6 +1,9 @@
 {-# LANGUAGE BangPatterns     #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 module Taiji.Utils.DataFrame
     ( DataFrame(..)
     , DataFrameIndex(..)
@@ -42,6 +45,7 @@ import           Bio.Utils.Functions    (ihs')
 import           Bio.Utils.Misc         (readDouble)
 import Conduit
 import Control.Monad (forM_)
+import GHC.Generics (Generic)
 import qualified Data.ByteString.Char8  as B
 import qualified Data.Text as T
 import qualified Data.CaseInsensitive   as CI
@@ -49,21 +53,26 @@ import           Data.Function          (on)
 import           Data.List as L
 import AI.Clustering.Hierarchical hiding (normalize)
 import AI.Clustering.KMeans
+import Data.Vector.Binary ()
 import Data.Maybe
 import qualified Data.Matrix            as M
 import qualified Data.Vector            as V
-import qualified Data.HashMap.Strict    as HM
+import qualified Data.Map.Strict    as HM
 import qualified Data.HashSet as HS
 import Statistics.Correlation (pearsonMatByRow, spearmanMatByRow)
 import Statistics.Matrix (toRowLists, fromRowLists)
+import Data.Binary (Binary)
 
 data DataFrame a = DataFrame
     { _dataframe_row_names :: V.Vector T.Text
-    , _dataframe_row_names_idx :: HM.HashMap T.Text Int
+    , _dataframe_row_names_idx :: HM.Map T.Text Int
     , _dataframe_col_names :: V.Vector T.Text
-    , _dataframe_col_names_idx :: HM.HashMap T.Text Int
+    , _dataframe_col_names_idx :: HM.Map T.Text Int
     , _dataframe_data :: M.Matrix a
-    } deriving (Show)
+    } deriving (Show, Generic)
+
+instance Binary a => Binary (M.Matrix a)
+instance Binary a => Binary (DataFrame a)
 
 mkDataFrame :: [T.Text]     -- ^ row names
             -> [T.Text]     -- ^ col names
@@ -118,31 +127,31 @@ instance DataFrameIndex Int where
 instance DataFrameIndex T.Text where
     csub df idx = csub df idx'
       where
-        idx' = L.map (\i -> HM.lookupDefault
+        idx' = L.map (\i -> HM.findWithDefault
             (error $ "index doesn't exist: " ++ T.unpack i) i $
             _dataframe_col_names_idx df) idx
 
     cindex df i = cindex df i'
       where
-        i' = HM.lookupDefault (error $ "index doesn't exist: " ++ T.unpack i) i $
+        i' = HM.findWithDefault (error $ "index doesn't exist: " ++ T.unpack i) i $
             _dataframe_col_names_idx df
 
     rsub df idx = rsub df idx'
       where
-        idx' = L.map (\i -> HM.lookupDefault
+        idx' = L.map (\i -> HM.findWithDefault
             (error $ "index doesn't exist: " ++ T.unpack i) i $
             _dataframe_row_names_idx df) idx
 
     rindex df i = rindex df i'
       where
-        i' = HM.lookupDefault (error $ "index doesn't exist: " ++ T.unpack i) i $
+        i' = HM.findWithDefault (error $ "index doesn't exist: " ++ T.unpack i) i $
             _dataframe_row_names_idx df
 
     (!) df (a,b) = (!) df (i,j)
       where
-        i = HM.lookupDefault (error $ "index doesn't exist: " ++ T.unpack a) a $
+        i = HM.findWithDefault (error $ "index doesn't exist: " ++ T.unpack a) a $
             _dataframe_row_names_idx df
-        j = HM.lookupDefault (error $ "index doesn't exist: " ++ T.unpack b) b $
+        j = HM.findWithDefault (error $ "index doesn't exist: " ++ T.unpack b) b $
             _dataframe_col_names_idx df
 
 dim :: DataFrame a -> (Int, Int)
@@ -172,14 +181,17 @@ cjoin df1 df2 = mkDataFrame rownames (colNames df1 ++ colNames df2) $
         HS.fromList (rowNames df2)
 
 cbind :: [DataFrame a] -> DataFrame a
-cbind dfs | allTheSame (L.map _dataframe_row_names dfs) = (head dfs)
+cbind dfs | allTheSame (L.map (HS.fromList . rowNames) dfs) = (head dfs)
     { _dataframe_col_names = col_names
     , _dataframe_col_names_idx = HM.fromList $ L.zip (V.toList col_names) [0..]
-    , _dataframe_data = M.fromBlocks undefined [L.map _dataframe_data dfs] }
+    , _dataframe_data = M.fromBlocks undefined [L.map reorderRow dfs] }
           | otherwise = error "Row names differ"
   where
-    allTheSame xs = all (== head xs) (tail xs)
+    reorderRow df | rowNames df == row_names = _dataframe_data df
+                  | otherwise = M.fromRows $ L.map (df `rindex`) row_names
+    row_names = rowNames $ head dfs
     col_names = V.concat $ L.map (_dataframe_col_names) dfs
+    allTheSame xs = all (== head xs) (tail xs)
 
 map :: (a -> b) -> DataFrame a -> DataFrame b
 map f df = df{_dataframe_data = M.map f $ _dataframe_data df}
@@ -291,7 +303,7 @@ readData input1 input2 = do
         collab = L.map (T.pack . B.unpack . CI.original) $ snd $ L.unzip $ head labels
     return $ mkDataFrame rowlab collab xs
 
-readTSV :: B.ByteString -> HM.HashMap (CI.CI B.ByteString, CI.CI B.ByteString) Double
+readTSV :: B.ByteString -> HM.Map (CI.CI B.ByteString, CI.CI B.ByteString) Double
 readTSV input = HM.fromList $ concatMap (f . B.split '\t') content
   where
     f (x:xs) = L.zipWith (\s v -> ((CI.mk x, CI.mk s), readDouble v)) samples xs
