@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='taiji-utils',
-      version='0.1.4',
+      version='0.2.0',
       description='Taiji pipeline',
       url='https://taiji-pipeline.github.io/', 
       author='Kai Zhang',
@@ -16,9 +16,10 @@ setup(name='taiji-utils',
           'numpy',
           'scikit-learn',
           'python-igraph',
-          'statsmodels',
+          'statsmodels>=0.12.1',
           'umap-learn',
           'leidenalg',
           'scrublet',
+          'csaps',
       ],
       zip_safe=False)

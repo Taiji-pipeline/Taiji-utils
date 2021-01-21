@@ -2,7 +2,7 @@ import scipy as sp
 import numpy as np
 import math
 from sklearn.linear_model import LinearRegression
-from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.metrics.pairwise import cosine_similarity, rbf_kernel
 
 from .Utils import readMatrix, regress
 
@@ -11,12 +11,15 @@ def spectral(args):
     nChunk = nSample
 
     print("Read Data")
-    if (args.distance == "jaccard"):
+    if (args.input_format == "dense"):
+        mat = np.loadtxt(args.input)
+    elif (args.distance == "jaccard"):
         mat = readMatrix(args.input, binary=True)
     else:
         mat = readMatrix(args.input, binary=False)
 
-    n, _ = mat.get_shape()
+    #n, _ = mat.get_shape()
+    n, _ = mat.shape
     if nSample < n:
         np.random.seed(args.seed)
         idx = np.arange(n)
@@ -40,14 +43,17 @@ class Spectral:
     def __init__(self, mat, n_dim=30, sampling_rate=1, distance="jaccard"):
         self.sample = mat
         self.sampling_rate = sampling_rate
-        self.dim = mat.get_shape()[1]
+        #self.dim = mat.get_shape()[1]
+        self.dim = mat.shape[1]
         self.coverage = mat.sum(axis=1) / self.dim
         self.distance = distance
         if (self.distance == "jaccard"):
             print("Use jaccard distance")
             self.compute_similarity = jaccard_similarity
-        else:
+        elif (self.distance == "cosine"):
             self.compute_similarity = cosine_similarity
+        else:
+            self.compute_similarity = rbf_kernel
 
         print("Compute similarity matrix")
         jm = self.compute_similarity(mat)

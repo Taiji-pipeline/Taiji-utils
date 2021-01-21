@@ -72,6 +72,7 @@ data TaijiConfig = TaijiConfig
     , _taiji_blacklist :: Maybe FilePath
     , _taiji_callpeak_fdr :: Maybe Double
     , _taiji_callpeak_genome_size :: Maybe String
+    , _taiji_scatac_cell_barcode_length :: Maybe Int
     , _taiji_scatac_te_cutoff :: Maybe Double
     , _taiji_scatac_minimal_fragment :: Int
     , _taiji_scrna_cell_barcode_length :: Maybe Int
@@ -121,6 +122,7 @@ instance FromJSON TaijiConfig where
                     _ | ass `elem` mouseGenome -> Just "mm"
                       | ass `elem` humanGenome -> Just "hs"
                       | otherwise -> Nothing )
+            <*> v .:? "scatac_cell_barcode_length"
             <*> v .:? "tss_enrichment_cutoff"
             <*> v .:? "scatac_fragment_cutoff" .!= 1000
             <*> v .:? "scrna_cell_barcode_length"

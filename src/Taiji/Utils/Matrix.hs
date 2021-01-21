@@ -62,6 +62,10 @@ data SpMatrix a where
                 , _streamer :: s -> ConduitT () (Row a) (ResourceT IO) () }
              -> SpMatrix a
 
+instance Functor SpMatrix where
+    fmap f SpMatrix{..} = SpMatrix _num_row _num_col _source $ \s -> 
+        _streamer s .| mapC (second $ map $ second f)
+
 type Row a = (B.ByteString, [(Int, a)])
 
 mkSpMatrix :: (B.ByteString -> a)   -- ^ Element decoder
@@ -211,7 +215,7 @@ deleteCols idx mat = (mapRows (second changeIdx) mat){_num_col = _num_col mat - 
   where
     changeIdx = filter ((>=0) . fst) . map (first (newIdx U.!))
     idx' = S.fromList idx
-    newIdx = U.reverse $ U.unfoldr f (0,0)
+    newIdx = U.unfoldr f (0,0)
     f (i, acc) | i >= _num_col mat = Nothing
                | i `S.member` idx' = Just (-1, (i+1, acc))
                | otherwise = Just (acc, (i+1, acc+1))

@@ -6,6 +6,8 @@ from .Doublet import detectDoublet
 from .BatchCorrect import MNCCorrectMain
 from .Viz import Viz
 from .Diff import diff
+from .Normalization import normalize
+from .Knee import selectBarcode
 
 ################################################################################
 ## ARGUMENT PARSER
@@ -17,6 +19,7 @@ subparsers = parser.add_subparsers(title="sub commands")
 # create the parser for the "reduce" command
 parser_reduce = subparsers.add_parser('reduce', help='dimension reduction')
 parser_reduce.add_argument('input', type=str, help='gzipped input file')
+parser_reduce.add_argument('--input-format', default="sparse", type=str)
 parser_reduce.add_argument('output', type=str, help='output matrix in .npy format')
 parser_reduce.add_argument('--sample-size', default=35000, type=int, help='sampling size')
 parser_reduce.add_argument('--dim', default=30, type=int, help='number of dimension')
@@ -76,6 +79,19 @@ parser_diff.add_argument('--output', type=str, help='output')
 parser_diff.add_argument('--fold', type=float, help='fold change cutoff')
 parser_diff.add_argument('--thread', type=int, default=10, help='number of threads')
 parser_diff.set_defaults(func=diff)
+
+# create the parser for the "normalize" command
+parser_normalize = subparsers.add_parser('normalize', help='')
+parser_normalize.add_argument('input', type=str, help='')
+parser_normalize.add_argument('output', type=str, help='')
+parser_normalize.set_defaults(func=normalize)
+
+# create the parser for the "normalize" command
+parser_barcode = subparsers.add_parser('barcode', help='')
+parser_barcode.add_argument('input', type=str, help='')
+parser_barcode.set_defaults(func=selectBarcode)
+
+
 
 def main():
     args = parser.parse_args()
