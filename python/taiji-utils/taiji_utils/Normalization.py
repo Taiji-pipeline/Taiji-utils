@@ -62,7 +62,7 @@ def fitPoisson(X, Y):
     X = add_constant(X)	
     return sm.GLM(Y, X, family=sm.families.Poisson()).fit(disp=0)
 
-def sctransform(cellxgene):
+def sctransform(cellxgene, nFeat=3000):
     r, c = cellxgene.get_shape()
     X = np.log10(cellxgene.sum(axis=1))
     gene_mean = gmeans(cellxgene)
@@ -85,19 +85,20 @@ def sctransform(cellxgene):
     cellxgene = cellxgene.todense()
     z = np.clip((cellxgene - mu) / sigma, a_min=-math.sqrt(r), a_max=math.sqrt(r))
     dispersion = np.ravel(np.var(z, axis=0))
-    features = dispersion.argsort()[-3000:]
+    features = dispersion.argsort()[-nFeat:]
     return z[:, features]
 
-def kdeSample(X):
+def kdeSample(X, nGene=2000):
     weights = np.reciprocal(stats.gaussian_kde(X, bw_method="silverman").evaluate(X))
     prob = weights / np.sum(weights)
-    return np.random.choice(X.shape[0], size=200, replace=False, p=prob)
+    return np.random.choice(X.shape[0], size=nGene, replace=False, p=prob)
 
 # apply column-wise geometric mean
 def gmeans(cellxgene):
     return np.ravel(np.expm1(cellxgene.log1p().mean(axis=0)))
 
 def normalize(args):
+    np.random.seed(0) 
     z = sctransform(readMatrix(args.input))
     np.savetxt(args.output, z)
 

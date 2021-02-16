@@ -103,6 +103,7 @@ instance FromJSON TaijiConfig where
             assembly = case M.lookup "assembly" v of
                 Just (String x) -> Just $ T.unpack $ T.toUpper x
                 _ -> Nothing
+            resolutions = [0.005, 0.01, 0.02, 0.04, 0.08, 0.16, 0.32, 0.64, 0.8, 1]
         TaijiConfig
             <$> v .:? "output_dir" .!= "output/"
             <*> v .: "input"
@@ -112,7 +113,7 @@ instance FromJSON TaijiConfig where
             <*> v .:? "motif_file" .!= fmap (\x -> genomeDir ++ x ++ ".meme") assembly
             <*> v .:? "tmp_dir"
             <*> v .:? "external_network"
-            <*> v .:? "scatac_cluster_resolutions" .!= [1]
+            <*> v .:? "scatac_cluster_resolutions" .!= resolutions
             <*> v .:? "cluster_optimizer" .!= RBConfiguration
             <*> v .:? "blacklist"
             <*> v .:? "callpeak_fdr"
@@ -128,7 +129,7 @@ instance FromJSON TaijiConfig where
             <*> v .:? "scrna_cell_barcode_length"
             <*> v .:? "scrna_umi_length"
             <*> v .:? "scrna_doublet_score_cutoff" .!= 0.5
-            <*> v .:? "scrna_cluster_resolutions" .!= [1]
+            <*> v .:? "scrna_cluster_resolutions" .!= resolutions
             <*> v .:? "bwa_index" .!=
                 (genomeDir <> "BWA_index/" <> fromMaybe "genome" assembly <> ".fa")
             <*> v .:? "bwa_seed_length" .!= 32

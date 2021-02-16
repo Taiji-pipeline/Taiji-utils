@@ -17,11 +17,8 @@ module Taiji.Utils
     , computeSS
     , computeCDF
 
-    -- * Plotting
-    , visualizeCluster
-    , sampleCells
-
     , module Taiji.Utils.Matrix
+    , module Taiji.Utils.Clustering
     ) where
 
 import Data.BBI.BigBed
@@ -46,6 +43,7 @@ import Statistics.Sample (varianceUnbiased, mean)
 import Bio.RealWorld.GENCODE (readGenes, Gene(..))
 
 import Taiji.Utils.Plot.ECharts
+import Taiji.Utils.Clustering
 import Taiji.Utils.Matrix
 import qualified Taiji.Utils.DataFrame as DF
 import Taiji.Prelude
@@ -178,33 +176,3 @@ computeCDF df = do
       where
         e = negate $ V.sum $ V.map (\p -> p * logBase 2 p) xs
 {-# INLINE computeCDF #-}
-
-visualizeCluster :: [CellCluster] -> [EChart]
-visualizeCluster cls =
-    [ addAttr toolbox $ scatter' $ flip map cls $ \(CellCluster nm cells) ->
-        (B.unpack nm, map _cell_2d cells) ] ++ if noName then [] else
-          [ addAttr toolbox $ scatter' $ map (first head . unzip) $
-              groupBy ((==) `on` fst) $ sortBy (comparing fst) $ concatMap
-              (map (\x -> (getName $ _cell_barcode x, _cell_2d x)) . _cluster_member) cls
-          ]
-  where
-    noName = null $ getName $ _cell_barcode $ head $
-        _cluster_member $ head cls
-    getName x = let prefix = fst $ B.breakEnd (=='+') x
-                in if B.null prefix then "" else B.unpack $ B.init prefix
-
--- | Random sample 30,000 cells.
-sampleCells :: [CellCluster] -> IO [CellCluster]
-sampleCells clusters
-    | ratio >= 1 = return clusters
-    | otherwise = do
-        gen <- create
-        forM clusters $ \c -> do
-            s <- sampling gen ratio $ V.fromList $ _cluster_member c
-            return $ c {_cluster_member = V.toList s}
-  where
-    n = foldl1' (+) $ map (length . _cluster_member) clusters
-    ratio = 1 / (fromIntegral n / 30000) :: Double
-    sampling gen frac v = V.take n' <$> uniformShuffle v gen
-      where
-        n' = max 200 $ truncate $ frac * fromIntegral (V.length v)

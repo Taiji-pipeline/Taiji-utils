@@ -115,6 +115,7 @@ saveMatrix output f mat = runResourceT $ runConduit $ streamRows mat .|
     sinkRows (_num_row mat) (_num_col mat) f output
 {-# INLINE saveMatrix #-}
 
+-- | Save matrix. transposed
 saveMatrixMM :: FilePath
              -> SpMatrix Int
              -> IO ()
