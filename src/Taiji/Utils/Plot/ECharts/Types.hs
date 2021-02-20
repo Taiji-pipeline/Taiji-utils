@@ -4,9 +4,11 @@ module Taiji.Utils.Plot.ECharts.Types
     , EChartAttribute(..)
     , Renderer(..)
     , mkEChart
+    , setDim
 
     , toolbox
     , title
+    , xAxisLabel
     , yAxisLabel
 
     , symbols
@@ -42,6 +44,9 @@ instance EChartAttribute JStat where
 mkEChart :: JExpr -> EChart
 mkEChart expr = EChart [expr] mempty 1300 700 Canvas
 
+setDim :: Int -> Int -> EChart -> EChart
+setDim w h e = e{_width=w, _height=h}
+
 toolbox :: JExpr
 toolbox = [jmacroE| {
     toolbox: {
@@ -49,6 +54,7 @@ toolbox = [jmacroE| {
         feature: {
             restore: {},
             dataZoom: {},
+            dataView: {},
             saveAsImage: {
                 pixelRatio: 3,
                 excludeComponents: ["dataZoom", "timeline", "toolbox"]
@@ -66,6 +72,14 @@ yAxisLabel x = [jmacroE| {
         name: `x`,
         nameLocation: "middle",
         nameGap: 40
+    }
+    }|]
+
+xAxisLabel :: String -> JExpr
+xAxisLabel x = [jmacroE| {
+    xAxis: {
+        name: `x`,
+        nameLocation: "middle"
     }
     }|]
 

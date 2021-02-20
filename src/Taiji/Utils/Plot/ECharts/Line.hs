@@ -1,7 +1,11 @@
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE QuasiQuotes #-}
 
-module Taiji.Utils.Plot.ECharts.Line (line, stackLine) where
+module Taiji.Utils.Plot.ECharts.Line
+    ( line
+    , line'
+    , stackLine
+    ) where
 
 import Language.Javascript.JMacro
 import qualified Data.Matrix            as M
@@ -40,6 +44,27 @@ line df = mkEChart [jmacroE| {
         type: "line",
         data: `ys`
         } |]
+
+line' :: [(Double, Double)] -> EChart
+line' dat = mkEChart [jmacroE| {
+    xAxis: {
+        type: "value",
+        axisLine: {onZero: false}
+    },
+    tooltip: {
+        trigger: "axis"
+    }, 
+    yAxis: {
+        type: "value",
+        axisLine: {onZero: false}
+    }, 
+    series: [{
+        data: `dataset`,
+        type: "line"
+    }]
+    } |]
+  where
+    dataset = map (\(x,y) -> [x,y]) dat
 
 stackLine :: DF.DataFrame Double -> EChart
 stackLine df = mkEChart [jmacroE| {

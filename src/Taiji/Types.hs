@@ -67,7 +67,8 @@ data TaijiConfig = TaijiConfig
     , _taiji_motif_file   :: Maybe FilePath
     , _taiji_tmp_dir      :: Maybe FilePath
     , _taiji_external_network :: Maybe FilePath
-    , _taiji_scatac_cluster_resolutions :: [Double]
+    , _taiji_scatac_cluster_resolution_list :: [Double]
+    , _taiji_scatac_cluster_resolution :: Maybe Double
     , _taiji_cluster_optimizer :: Optimizer
     , _taiji_blacklist :: Maybe FilePath
     , _taiji_callpeak_fdr :: Maybe Double
@@ -78,7 +79,8 @@ data TaijiConfig = TaijiConfig
     , _taiji_scrna_cell_barcode_length :: Maybe Int
     , _taiji_scrna_umi_length :: Maybe Int
     , _taiji_scrna_doublet_score_cutoff :: Double
-    , _taiji_scrna_cluster_resolutions :: [Double]
+    , _taiji_scrna_cluster_resolution_list :: [Double]
+    , _taiji_scrna_cluster_resolution :: Maybe Double
     , _taiji_bwa_index    :: FilePath
     , _taiji_bwa_seed_length :: Int
     , _taiji_star_index   :: FilePath
@@ -113,7 +115,8 @@ instance FromJSON TaijiConfig where
             <*> v .:? "motif_file" .!= fmap (\x -> genomeDir ++ x ++ ".meme") assembly
             <*> v .:? "tmp_dir"
             <*> v .:? "external_network"
-            <*> v .:? "scatac_cluster_resolutions" .!= resolutions
+            <*> v .:? "scatac_cluster_resolution_list" .!= resolutions
+            <*> v .:? "scatac_cluster_resolution"
             <*> v .:? "cluster_optimizer" .!= RBConfiguration
             <*> v .:? "blacklist"
             <*> v .:? "callpeak_fdr"
@@ -129,7 +132,8 @@ instance FromJSON TaijiConfig where
             <*> v .:? "scrna_cell_barcode_length"
             <*> v .:? "scrna_umi_length"
             <*> v .:? "scrna_doublet_score_cutoff" .!= 0.5
-            <*> v .:? "scrna_cluster_resolutions" .!= resolutions
+            <*> v .:? "scrna_cluster_resolution_list" .!= resolutions
+            <*> v .:? "scrna_cluster_resolution"
             <*> v .:? "bwa_index" .!=
                 (genomeDir <> "BWA_index/" <> fromMaybe "genome" assembly <> ".fa")
             <*> v .:? "bwa_seed_length" .!= 32
