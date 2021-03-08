@@ -25,10 +25,7 @@ import Data.BBI.BigBed
 import Bio.Data.Experiment
 import Bio.Data.Bed
 import Bio.Utils.Functions (scale)
-import Control.Arrow (first)
 import           Data.CaseInsensitive    (mk)
-import Data.List (foldl')
-import           Bio.Utils.Misc          (readDouble, readInt)
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Matrix.Unboxed as MU
 import qualified Data.Matrix as Mat
@@ -39,10 +36,9 @@ import qualified Data.Vector as V
 import qualified Data.Vector.Mutable as VM
 import System.Random.MWC.Distributions
 import System.Random.MWC
-import Statistics.Sample (varianceUnbiased, mean)
+import Statistics.Sample (mean, varianceUnbiased)
 import Bio.RealWorld.GENCODE (readGenes, Gene(..))
 
-import Taiji.Utils.Plot.ECharts
 import Taiji.Utils.Clustering
 import Taiji.Utils.Matrix
 import qualified Taiji.Utils.DataFrame as DF

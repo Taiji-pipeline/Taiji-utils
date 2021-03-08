@@ -62,6 +62,7 @@ def fitPoisson(X, Y):
     X = add_constant(X)	
     return sm.GLM(Y, X, family=sm.families.Poisson()).fit(disp=0)
 
+'''
 def sctransform(cellxgene, nFeat=3000):
     r, c = cellxgene.get_shape()
     X = np.log10(cellxgene.sum(axis=1))
@@ -92,15 +93,45 @@ def kdeSample(X, nGene=2000):
     weights = np.reciprocal(stats.gaussian_kde(X, bw_method="silverman").evaluate(X))
     prob = weights / np.sum(weights)
     return np.random.choice(X.shape[0], size=nGene, replace=False, p=prob)
+'''
 
 # apply column-wise geometric mean
 def gmeans(cellxgene):
     return np.ravel(np.expm1(cellxgene.log1p().mean(axis=0)))
 
+def sctransform(cellxgene, cell_reads, gene_mean, new_data):
+    _, c = cellxgene.get_shape()
+
+    # fit NB model for each gene
+    params = []
+    for i in range(c):
+        Y = cellxgene.getcol(i).todense()
+        params.append(fitNB(cell_reads, Y))
+    params = np.array(params)
+
+    gene_mean = np.log10(gene_mean)
+
+    beta0_fit = fitSmooth(gene_mean, params[:, 0]) 
+    beta1_fit = fitSmooth(gene_mean, params[:, 1]) 
+    alpha_fit = fitSmooth(gene_mean, np.log(params[:, 2]))
+
+    new_data = np.log10(new_data)
+    beta0 = beta0_fit.predict(new_data[:, None])
+    beta1 = beta1_fit.predict(new_data[:, None])
+    alpha = np.exp(alpha_fit.predict(new_data[:, None]))
+    return(np.array([beta0, beta1, alpha]))
+
 def normalize(args):
     np.random.seed(0) 
-    z = sctransform(readMatrix(args.input))
-    np.savetxt(args.output, z)
+    inputMat = readMatrix(args.input)
+
+    with open(args.genemean, 'r') as fl:
+        geneMean = [float(l.strip()) for l in fl]
+    with open(args.cellreads, 'r') as fl:
+        cellReads = [float(l.strip()) for l in fl]
+    with open(args.data, 'r') as fl:
+        data = [float(l.strip()) for l in fl]
+    np.savetxt(args.output, sctransform(inputMat, cellReads, geneMean, data))
 
     '''
     v = np.ravel(np.var(z, axis=0))

@@ -8,9 +8,9 @@ def fitSpline(X, Y):
         ds = []
         for i in range(len(xs)):
             if i == 0:
-                d = 2 * (xs[0] - xs[1])
+                d = (Y[0] - xs[0]) + (xs[0] - xs[1])
             elif i == len(xs)-1:
-                d = 2 * (xs[-2] - xs[-1])
+                d = (xs[-2] - xs[-1]) + (xs[-1] - Y[-1])
             else:
                 d = xs[i-1] - xs[i+1]
             ds.append(d)

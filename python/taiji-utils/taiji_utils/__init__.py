@@ -83,6 +83,9 @@ parser_diff.set_defaults(func=diff)
 # create the parser for the "normalize" command
 parser_normalize = subparsers.add_parser('normalize', help='')
 parser_normalize.add_argument('input', type=str, help='')
+parser_normalize.add_argument('genemean', type=str, help='')
+parser_normalize.add_argument('cellreads', type=str, help='')
+parser_normalize.add_argument('data', type=str, help='')
 parser_normalize.add_argument('output', type=str, help='')
 parser_normalize.set_defaults(func=normalize)
 

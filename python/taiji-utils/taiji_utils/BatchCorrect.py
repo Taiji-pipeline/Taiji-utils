@@ -19,8 +19,14 @@ class Projector(object):
         return np.apply_along_axis(project, 1, X)
 
 def findMNC(X, Y, k, n):
-    cX = KMeans(n_clusters=k, random_state=0).fit(X).cluster_centers_
-    cY = KMeans(n_clusters=k, random_state=0).fit(Y).cluster_centers_
+    if (X.shape[0] <= k):
+        cX = X
+    else:
+        cX = KMeans(n_clusters=k, random_state=0).fit(X).cluster_centers_
+    if (Y.shape[0] <= k):
+        cY = Y
+    else:
+        cY = KMeans(n_clusters=k, random_state=0).fit(Y).cluster_centers_
 
     treeX = KDTree(cX)
     treeY = KDTree(cY)

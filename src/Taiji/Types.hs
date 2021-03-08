@@ -5,6 +5,7 @@
 {-# LANGUAGE RecordWildCards #-}
 module Taiji.Types
     ( TaijiConfig(..)
+    , readBatchInfo
     , fetchGenome
     , fetchAnnotation
     , fetchMotif
@@ -61,6 +62,7 @@ import Data.Double.Conversion.ByteString (toShortest)
 data TaijiConfig = TaijiConfig
     { _taiji_output_dir   :: Directory
     , _taiji_input        :: FilePath
+    , _taiji_batch_info   :: Maybe FilePath
     , _taiji_assembly     :: Maybe String
     , _taiji_genome       :: Maybe FilePath
     , _taiji_annotation   :: Maybe FilePath
@@ -109,6 +111,7 @@ instance FromJSON TaijiConfig where
         TaijiConfig
             <$> v .:? "output_dir" .!= "output/"
             <*> v .: "input"
+            <*> v .:? "batch_info"
             <*> return assembly
             <*> v .:? "genome" .!= fmap (\x -> genomeDir ++ x ++ ".fasta") assembly
             <*> v .:? "annotation" .!= fmap (\x -> genomeDir ++ x ++ ".gtf") assembly
@@ -142,6 +145,14 @@ instance FromJSON TaijiConfig where
                 (genomeDir <> fromMaybe "genome" assembly <> ".index")
             <*> v .:? "rsem_index" .!=
                 (genomeDir <> "RSEM_index/" <> fromMaybe "genome" assembly)
+
+readBatchInfo :: FilePath -> IO [(B.ByteString, (B.ByteString, Maybe B.ByteString))]
+readBatchInfo fl = do
+    map (f . B.split '\t') . tail . B.lines <$> B.readFile fl
+  where
+    f (a:b:c:_) = (a, (b, Just c))
+    f (a:b:_) = (a, (b, Nothing))
+    f _ = error "Format error in batch information file"
 
 mouseGenome :: [String]
 mouseGenome = ["GRCM38", "MM10"]

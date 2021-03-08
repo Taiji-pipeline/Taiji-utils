@@ -25,7 +25,9 @@ module Taiji.Utils.Matrix
 
     , mapRows
     , deleteCols
+    , selectCols
     , deleteRows
+    , selectRows
     , filterCols
     , concatMatrix
     , concatMatrix'
@@ -33,12 +35,9 @@ module Taiji.Utils.Matrix
     ) where
 
 import Data.Conduit.Zlib (multiple, ungzip, gzip)
-import Data.ByteString.Lex.Integral (packDecimal)
 import Control.Arrow (first, second)
 import Data.Conduit.Internal (zipSinks, zipSources)
 import qualified Data.Conduit.List as L (groupBy)
-import Data.List (foldl', sort)
-import           Bio.Utils.Misc          (readInt)
 import qualified Data.Text as T
 import qualified Data.ByteString.Char8 as B
 import qualified Data.IntSet as IS
@@ -51,7 +50,6 @@ import Data.Matrix.Static.IO (fromMM', toMM)
 import Data.Matrix.Dynamic (fromTriplet, Dynamic(..))
 import System.Random.MWC.Distributions (uniformPermutation)
 import System.Random.MWC
-import Text.Printf (printf)
 
 import Taiji.Prelude
 
@@ -212,23 +210,45 @@ meanVariance mat = do
 deleteCols :: [Int]      -- ^ Columns to be removed
            -> SpMatrix a
            -> SpMatrix a
-deleteCols idx mat = (mapRows (second changeIdx) mat){_num_col = _num_col mat - length idx}
+deleteCols idx mat = (mapRows (second changeIdx) mat){_num_col = _num_col mat - IS.size idx'}
   where
     changeIdx = filter ((>=0) . fst) . map (first (newIdx U.!))
-    idx' = S.fromList idx
     newIdx = U.unfoldr f (0,0)
     f (i, acc) | i >= _num_col mat = Nothing
-               | i `S.member` idx' = Just (-1, (i+1, acc))
+               | i `IS.member` idx' = Just (-1, (i+1, acc))
                | otherwise = Just (acc, (i+1, acc+1))
+    idx' = IS.fromList $ filter (\x -> x >= 0 && x < _num_col mat) idx
 {-# INLINE deleteCols #-}
+
+selectCols :: [Int]      -- ^ Columns to be kept
+           -> SpMatrix a
+           -> SpMatrix a
+selectCols idx mat = (mapRows (second changeIdx) mat){_num_col = IS.size idx'}
+  where
+    changeIdx = filter ((>=0) . fst) . map (first (newIdx U.!))
+    newIdx = U.unfoldr f (0,0)
+    f (i, acc) | i >= _num_col mat = Nothing
+               | i `IS.member` idx' = Just (acc, (i+1, acc+1))
+               | otherwise = Just (-1, (i+1, acc))
+    idx' = IS.fromList $ filter (\x -> x >= 0 && x < _num_col mat) idx
+{-# INLINE selectCols #-}
+
+selectRows :: [Int]  -- ^ Rows to be kept
+           -> SpMatrix a -> SpMatrix a
+selectRows idx SpMatrix{..} = SpMatrix (IS.size idx') _num_col _source $ \s ->
+    zipSources (iterateC succ 0) (_streamer s) .| filterC f .| mapC snd
+  where
+    f (i,_) = i `IS.member` idx'
+    idx' = IS.fromList $ filter (\x -> x >= 0 && x < _num_row) idx
+{-# INLINE selectRows #-}
 
 deleteRows :: [Int]  -- ^ Rows to be removed
            -> SpMatrix a -> SpMatrix a
-deleteRows idx SpMatrix{..} = SpMatrix (_num_row - length idx) _num_col _source $ \s ->
+deleteRows idx SpMatrix{..} = SpMatrix (_num_row - IS.size idx') _num_col _source $ \s ->
     zipSources (iterateC succ 0) (_streamer s) .| filterC f .| mapC snd
   where
     f (i,_) = not $ i `IS.member` idx'
-    idx' = IS.fromList idx
+    idx' = IS.fromList $ filter (\x -> x >= 0 && x < _num_row) idx
 {-# INLINE deleteRows #-}
 
 sampleRows :: PrimMonad m

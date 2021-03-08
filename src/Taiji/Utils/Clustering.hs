@@ -15,6 +15,7 @@ import Bio.Data.Bed
 import Control.Arrow (first, (&&&))
 import Conduit
 import qualified Data.Vector as V
+import qualified Data.Vector.Mutable as VM
 import qualified Data.Vector.Unboxed.Mutable as UM
 import qualified Data.Vector.Unboxed as U
 import System.IO
@@ -127,6 +128,7 @@ silhouette input
         go i (x:xs) = let n = length x in take n [i..] : go (i + n) xs
         go _ _ = []
     distMat = computeDists euclidean $ V.fromList $ concat input
+{-# INLINE silhouette #-}
 
 confusionTable :: (Eq a, Hashable a) => [[a]] -> [[a]] -> [[Int]]
 confusionTable inputA inputB = flip map inputA' $ \a -> flip map inputB' $ \b ->
@@ -134,19 +136,37 @@ confusionTable inputA inputB = flip map inputA' $ \a -> flip map inputB' $ \b ->
   where
     inputA' = map S.fromList inputA
     inputB' = map S.fromList inputB
+{-# INLINE confusionTable #-}
 
-{-
+batchCorrect :: [Maybe (B.ByteString, Maybe B.ByteString)]  -- ^ label and group
+             -> V.Vector (U.Vector Double)    -- ^ Data
+             -> IO (V.Vector (U.Vector Double))
+batchCorrect batchInfo input = do
+    vec <- V.thaw input
+    forM_ batchGroups $ \(idx, label) -> when (length (nubSort label) > 1) $ do
+        res <- batchAveraging label (map (input V.!) idx)
+        forM_ (zip idx res) $ \(i, r) -> VM.unsafeWrite vec i r
+    V.unsafeFreeze vec
+  where
+    batchGroups = map (unzip . map (\(i, (x, _)) -> (i, x))) $
+        groupBy ((==) `on` (snd . snd)) $ sortBy (comparing (snd . snd)) $
+        mapMaybe (\(i, b) -> maybe Nothing (\x -> Just (i,x)) b) $ zip [0..] batchInfo
+{-# INLINE batchCorrect #-}
+
 batchAveraging :: [B.ByteString]    -- ^ Batch labels
-               -> [B.ByteString]    -- ^ Data
-               -> IO ()
+               -> [U.Vector Double]    -- ^ Data
+               -> IO [U.Vector Double]
 batchAveraging labels input = withTempDir Nothing $ \dir -> do
     let labelFl = dir <> "/label.txt"
-        inputFl = dir <> "/mat.txt"
+        matFl = dir <> "/mat.txt"
         tmp = dir <> "/tmp.txt"
     B.writeFile labelFl $ B.unlines labels
-    B.writeFile matFl $ B.unlines input
+    B.writeFile matFl $ B.unlines $ map (B.intercalate "\t" . map toShortest . U.toList) input
     shelly $ run_ "taiji-utils" ["correct", "--label", T.pack labelFl, T.pack matFl, T.pack tmp]
+    map (U.fromList . map readDouble . B.words) . B.lines <$> B.readFile tmp
+{-# INLINE batchAveraging #-}
 
+{-
 batchCorrect :: [] -> FilePath -> FilePath -> IO ()
 batchCorrect batches spec dir = do
     groups <- getGroups . map (fst . B.breakEnd (=='+')) . B.lines <$> B.readFile rownames
