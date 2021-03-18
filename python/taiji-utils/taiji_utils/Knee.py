@@ -24,7 +24,7 @@ def fitSpline(X, Y):
 
 def selectBarcode(args):
     with open(args.input, 'r') as fl:
-        Y = [float(l.strip()) for l in fl]
+        Y = [float(l.strip().split('\t')[1]) for l in fl]
     X = np.log10(np.array(list(range(1, len(Y)+1))))
     Y = np.log10(np.array(Y))
     print(10**fitSpline(X, Y))

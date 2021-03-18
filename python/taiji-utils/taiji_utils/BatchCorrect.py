@@ -19,23 +19,19 @@ class Projector(object):
         return np.apply_along_axis(project, 1, X)
 
 def findMNC(X, Y, k, n):
-    if (X.shape[0] <= k):
-        cX = X
-    else:
-        cX = KMeans(n_clusters=k, random_state=0).fit(X).cluster_centers_
-    if (Y.shape[0] <= k):
-        cY = Y
-    else:
-        cY = KMeans(n_clusters=k, random_state=0).fit(Y).cluster_centers_
+    nX = X.shape[0]
+    nY = Y.shape[0]
+    cX = KMeans(n_clusters=min(k, nX), random_state=0).fit(X).cluster_centers_
+    cY = KMeans(n_clusters=min(k, nY), random_state=0).fit(Y).cluster_centers_
 
     treeX = KDTree(cX)
     treeY = KDTree(cY)
 
     # X by Y matrix
-    mX = treeY.query(cX, k=n, return_distance=False)
+    mX = treeY.query(cX, k=min(n, nY), return_distance=False)
 
     # Y by X matrix
-    mY_ = treeX.query(cY, k=n, return_distance=False)
+    mY_ = treeX.query(cY, k=min(n, nX), return_distance=False)
     mY = []
     for i in range(mY_.shape[0]):
         mY.append(set(mY_[i,:]))

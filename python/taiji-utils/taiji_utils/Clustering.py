@@ -30,7 +30,14 @@ def mkKNNGraph(args):
     adj = adj / len(fls)
 
     np.reciprocal(adj.data, out=adj.data)
-    sp.sparse.save_npz(args.output, adj)
+
+    #sp.sparse.save_npz(args.output, adj)
+    (row, col) = adj.nonzero()
+    data = np.ravel(adj[row,col])
+    with open(args.output, 'w') as outFl:
+        print(adj.get_shape()[0], file=outFl)
+        for i in range(len(row)):
+            print("%d\t%d\t%f" % (row[i], col[i], data[i]), file=outFl)
 
     if(args.embed):
         print("Create Embedding:")

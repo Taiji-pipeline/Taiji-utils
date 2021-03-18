@@ -1,65 +1,107 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Taiji.Utils.Clustering where
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE LambdaCase #-}
+module Taiji.Utils.Clustering
+    ( evalClusters
+    , computeClusterMetrics
+    , readKNNGraph
+    , optimalParam
+    , visualizeCluster
+    , sampleCells
+    , silhouette
+    , confusionTable
+    , batchCorrect
+    , leiden
+    , ari
+    ) where
 
 import qualified Data.ByteString.Char8 as B
 import Data.Binary (encodeFile, decodeFile)
-import Bio.Utils.Functions (scale)
 import Bio.Utils.Misc
-import qualified Data.Conduit.List as CL
 import qualified Data.Text as T
 import qualified Data.HashSet as S
 import qualified Data.HashMap.Strict as M
-import qualified Data.IntMap.Strict as I
 import Data.Hashable (Hashable)
-import Bio.Data.Bed
-import Control.Arrow (first, (&&&))
+import Control.Arrow (first)
 import Conduit
 import qualified Data.Vector as V
 import qualified Data.Vector.Mutable as VM
-import qualified Data.Vector.Unboxed.Mutable as UM
 import qualified Data.Vector.Unboxed as U
-import System.IO
 import Data.List.Ordered (nubSort)
-import Shelly (shelly, run_, escaping)
+import Shelly (shelly, run_)
 import Data.Conduit.Zlib (multiple, ungzip)
 import AI.Clustering.Hierarchical.Types (computeDists, (!))
 import AI.Clustering.Hierarchical (euclidean)
-import Statistics.Sample (varianceUnbiased, mean)
+import Statistics.Sample (mean)
 import System.Random.MWC.Distributions
 import System.Random.MWC
+
+import IGraph.Random
+import IGraph
+import qualified IGraph.Algorithms.Community as I
 
 import Taiji.Prelude
 import Taiji.Utils.Plot.ECharts
 import Taiji.Utils.Plot
    
 -- | Evaluating the clustering results
-evalClusters :: Optimizer  -- ^ Optimizer
+evalClusters :: FilePath
+             -> Optimizer  -- ^ Optimizer
              -> Double     -- ^ Resolution
-             -> FilePath   -- ^ spectral
              -> FilePath   -- ^ knn
-             -> IO (Int, Double, Double)
-evalClusters optimizer res spectral knn = withTemp Nothing $ \tmpFl -> do
-    shelly $ run_ "taiji-utils" [ "clust", T.pack knn, T.pack tmpFl
-        , "--stability", "--res", T.pack $ show res, "--optimizer"
-        , case optimizer of
-            RBConfiguration -> "RB"
-            CPM -> "CPM"
-        ]
-    [_, stability] <- words . head . lines <$> readFile tmpFl
-    shelly $ run_ "taiji-utils" [ "clust", T.pack knn, T.pack tmpFl
-        , "--res", T.pack $ show res, "--optimizer"
-        , case optimizer of
-            RBConfiguration -> "RB"
-            CPM -> "CPM"
-        ]
-    clusters <- map (map readInt . B.split ',') . B.lines <$> B.readFile tmpFl
-    points <- runResourceT $ runConduit $ sourceFile spectral .|
+             -> IO ([FilePath], FilePath)
+evalClusters dir optimizer res knn = do
+    gr <- readKNNGraph knn
+    gen <- create
+
+    perturbed <- forM [1::Int ..5] $ \i -> do
+        let output' = dir <> "/perturbed_clustering_result_" <> show i <> ".bin"
+        r <- mutateGraph gr gen >>= leiden res optimizer 
+        encodeFile output' $ map snd $ sort $ concat $ zipWith (\a b -> zip a $ repeat b) r [0::Int ..]
+        return output'
+
+    let output = dir <> "/clustering_result.bin"
+    (filter ((>100) . length) <$> leiden res optimizer gr) >>= encodeFile output
+    return (perturbed, output)
+  where
+    mutateGraph gr gen = do
+        let n = truncate $ fromIntegral (nEdges gr) * (0.02 :: Double)
+        xs <- take n . V.toList <$> uniformShuffle (V.fromList $ edges gr) gen
+        return $ delEdges xs gr
+
+computeClusterMetrics :: ([FilePath], FilePath)
+                      -> FilePath
+                      -> IO (Int, Double, Double)
+computeClusterMetrics (perturbed, cl) coordinate = do
+    stability <- (mean . U.fromList . map ari . comb) <$> mapM decodeFile perturbed
+    clusters <- decodeFile cl
+    points <- fmap V.fromList $ runResourceT $ runConduit $ sourceFile coordinate .|
         multiple ungzip .| linesUnboundedAsciiC .|
         mapC (U.fromList . map readDouble . B.split '\t') .| sinkList
     gen <- create
-    subsample <- I.fromList . V.toList . V.take 5000 <$> uniformShuffle (V.fromList $ zip [0..] points) gen
-    let sil = silhouette $ flip map clusters $ \xs -> flip mapMaybe xs $ \x -> I.lookup x subsample
-    return (length clusters, sil, read stability)
+
+    let samplingRatio = 10000 / fromIntegral (V.length points) :: Double
+    clusters' <- forM clusters $ \c -> do
+        let n = max 2 $ truncate $ fromIntegral (length c) * samplingRatio
+        V.toList . V.take n <$> uniformShuffle (V.fromList c) gen
+
+    let sil = silhouette $ (map . map) (points V.!) clusters'
+    return (length clusters, sil, stability)
+  where
+    comb (x:xs) = zip (repeat x) xs ++ comb xs
+    comb _ = []
+
+readKNNGraph :: FilePath -> IO (Graph 'U () Double)
+readKNNGraph fl = runResourceT $ runConduit $ sourceFile fl .| linesUnboundedAsciiC .| sink
+  where
+    sink = do
+        n <- headC >>= \case
+            Nothing -> error ""
+            Just x -> return $ readInt x
+        es <- mapC f .| sinkList
+        return $ mkGraph (replicate n ()) es
+    f x = let (a:b:c:_) = B.split '\t' x
+          in ((readInt a, readInt b), readDouble c)
 
 optimalParam :: FilePath
              -> [(Double, (Int, Double, Double))]
@@ -68,7 +110,8 @@ optimalParam output input = do
     savePlots output [] plt
     return $ fst $ maximumBy (comparing (^._2._2)) $ filter (\x -> x^._2._3 >= 0.9) input
   where
-    (res, dat) = unzip $ flip map input $ \(r, (n, sil, stab)) -> (r, (fromIntegral n, sil, stab))
+    (res, dat) = unzip $ flip map (sortBy (comparing fst) input) $ \(r, (n, sil, stab)) ->
+        (r, (fromIntegral n, sil, stab))
     (num, sils, stabs) = unzip3 dat
     plt = map (setDim 400 300 . addAttr toolbox)
         [ addAttr (yAxisLabel "number of clusters") $
@@ -166,44 +209,60 @@ batchAveraging labels input = withTempDir Nothing $ \dir -> do
     map (U.fromList . map readDouble . B.words) . B.lines <$> B.readFile tmp
 {-# INLINE batchAveraging #-}
 
-{-
-batchCorrect :: [] -> FilePath -> FilePath -> IO ()
-batchCorrect batches spec dir = do
-    groups <- getGroups . map (fst . B.breakEnd (=='+')) . B.lines <$> B.readFile rownames
-    corrected <- forM groups $ \grp -> withTempDir Nothing $ \tmp -> do
-        (label, dat) <- readMatrix spec grp
-        let labelFl = tmp <> "/" <> "label.txt"
-            matFl = tmp <> "/" <> "ori_mat.txt"
-        writeFile labelFl $ unlines label
-        B.writeFile matFl $ B.unlines $ map (B.intercalate "\t" . map toShortest) dat
-        let output1 = dir <> "/" <> tissueName <> "_new_mat.gz"
-            output2 = dir <> "/" <> tissueName <> "_umap.txt"
-            tissueName = T.unpack $ T.init $ fst $ T.breakOnEnd "_" $ T.pack $ head label
-        shelly $ run_ "python3" ["batchCorrect.py", T.pack matFl, T.pack labelFl, T.pack output1, T.pack output2]
-        return (tissueName, fst $ unzip grp, output1, output2)
-    let output = dir <> "/corrected.mat.gz"
-    dat <- runResourceT $ runConduit $ sourceFile spec .| multiple ungzip .|
-        linesUnboundedAsciiC .| sinkVector :: IO (V.Vector B.ByteString)
-    mat <- V.unsafeThaw dat
-    new <- forM corrected $ \(_, idx, matFl, _) -> do
-        mat <- runResourceT $ runConduit $ sourceFile matFl .|
-            multiple ungzip .| linesUnboundedAsciiC .| sinkList
-        return $ zip idx mat
-    forM_ (concat new) $ \(i, xs) -> VM.unsafeWrite mat i xs
-    res <- V.toList <$> V.unsafeFreeze mat
-    runResourceT $ runConduit $ yieldMany res .| unlinesAsciiC .| gzip .| sinkFile output
+leiden :: Double -> Optimizer -> Graph 'U () Double -> IO [[Int]]
+leiden resolution optimizer gr = withSeed 9304 $ 
+    I.findCommunity gr nodeWeight (Just id) I.leiden{I._resolution=res}
   where
-    getGroups :: [B.ByteString] -> [[(Int, B.ByteString)]]
-    getGroups = filter g . groupBy ((==) `on` f) . sortBy (comparing f) . zip [0..]
+    (nodeWeight, res) = case optimizer of 
+        RBConfiguration ->
+            ( Just $ \i _ -> foldl1' (+) $ map (\j -> edgeLab gr (i, j)) $ neighbors gr i
+            , resolution / (2 * (foldl1' (+) $ map snd $ labEdges gr)))
+        CPM -> (Nothing, resolution)
+
+-- | Adjusted Rand Index: <http://en.wikipedia.org/wiki/Rand_index>
+ari :: ([Int], [Int]) -> Double
+ari (a, b) | length a /= length b = error "unequal length"
+           | a == b = 1
+           | otherwise = ari' $ counts a b
+  where
+    ari' (Counts cxy cx cy) =  (sum1 - sum2*sum3/choicen2) 
+                            / (1/2 * (sum2+sum3) - (sum2*sum3) / choicen2)
+      where choicen2 = choice (sum . M.elems $ cx) 2
+            sum1 = sum [ choice nij 2 | nij <- M.elems cxy ]
+            sum2 = sum [ choice ni 2 | ni <- M.elems cx ]
+            sum3 = sum [ choice nj 2 | nj <- M.elems cy ]
+    -- | Creates count table 'Counts'
+    counts xs = foldl' f mempty . zipWith ((,)) xs
+        where f cs@(Counts cxy cx cy) p@(x,y) = 
+                cs { joint       = M.insertWith (+) p 1 cxy
+                , marginalFst = M.insertWith (+) x 1 cx
+                , marginalSnd = M.insertWith (+) y 1 cy }
+    -- | The binomial coefficient: C^n_k = PROD^k_i=1 (n-k-i)\/i
+    choice :: Double -> Double -> Double
+    choice n k = foldl' (*) 1 [n-k+1 .. n] / foldl' (*) 1 [1 .. k]
+
+-- | Count table
+data Counts = Counts 
+    { joint :: !(M.HashMap (Int, Int) Double) -- ^ Counts of both components
+    , marginalFst :: !(M.HashMap Int Double) -- ^ Counts of the first component
+    , marginalSnd :: !(M.HashMap Int Double) -- ^ Counts of the second component
+    } 
+
+instance Monoid Counts where
+    mempty = Counts M.empty M.empty M.empty
+    c `mappend` k = 
+        Counts { joint = unionPlus (joint c) (joint k)
+               , marginalFst = unionPlus (marginalFst c) (marginalFst k)
+               , marginalSnd = unionPlus (marginalSnd c) (marginalSnd k)
+               }
       where
-        f = fst . B.breakEnd (=='_') . snd
-        g x = let m = map snd $ M.toList $ M.fromListWith (+) $ zip (map snd x) $ repeat 1
-              in length m > 1 && all (>20) m
-    readMatrix :: FilePath -> [(Int, B.ByteString)] -> IO ([String], [[Double]])
-    readMatrix input label = do
-        dat <- runResourceT $ runConduit $ sourceFile input .| multiple ungzip .|
-            linesUnboundedAsciiC .| sinkVector :: IO (V.Vector B.ByteString)
-        return (map B.unpack labels, map (\i -> map readDouble $ B.split '\t' $ dat V.! i) idx)
+        unionPlus m = M.foldlWithKey' (\z k' v -> M.insertWith (+) k' v z) m
+
+instance Semigroup Counts where
+    c <> k = 
+        Counts { joint = unionPlus (joint c) (joint k)
+               , marginalFst = unionPlus (marginalFst c) (marginalFst k)
+               , marginalSnd = unionPlus (marginalSnd c) (marginalSnd k)
+               }
       where
-        (idx, labels) = unzip label
--}
+        unionPlus m = M.foldlWithKey' (\z k' v -> M.insertWith (+) k' v z) m

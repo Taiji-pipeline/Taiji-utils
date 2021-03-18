@@ -61,6 +61,7 @@ library
                      , data-ordlist
                      , double-conversion
                      , hashable
+                     , haskell-igraph
                      , matrices
                      , matrix-sized
                      , mwc-random
