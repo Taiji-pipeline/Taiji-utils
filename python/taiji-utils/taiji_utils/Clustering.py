@@ -8,6 +8,7 @@ import igraph as ig
 import umap
 from sklearn.metrics import adjusted_rand_score
 import multiprocessing as mp
+import gzip
 
 """
 args.input: a list of files.
@@ -34,7 +35,7 @@ def mkKNNGraph(args):
     #sp.sparse.save_npz(args.output, adj)
     (row, col) = adj.nonzero()
     data = np.ravel(adj[row,col])
-    with open(args.output, 'w') as outFl:
+    with gzip.open(args.output, 'wt') as outFl:
         print(adj.get_shape()[0], file=outFl)
         for i in range(len(row)):
             print("%d\t%d\t%f" % (row[i], col[i], data[i]), file=outFl)

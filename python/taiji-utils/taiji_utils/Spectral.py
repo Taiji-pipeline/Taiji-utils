@@ -7,6 +7,7 @@ from sklearn.metrics.pairwise import cosine_similarity, rbf_kernel
 from .Utils import readMatrix, regress
 
 def spectral(args):
+    np.random.seed(args.seed)
     nSample = max(1000, args.sample_size)
     nChunk = nSample
 
@@ -21,7 +22,6 @@ def spectral(args):
     #n, _ = mat.get_shape()
     n, _ = mat.shape
     if nSample < n:
-        np.random.seed(args.seed)
         idx = np.arange(n)
         np.random.shuffle(idx)
         sample = mat[idx[:nSample], :]

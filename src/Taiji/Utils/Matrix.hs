@@ -11,7 +11,6 @@ module Taiji.Utils.Matrix
     , Row
     , mkSpMatrix
     , mkSpMatrixMM
-    , transformation
     , saveMatrix
     , saveMatrixMM
     , streamRows
@@ -97,13 +96,6 @@ mkSpMatrixMM fl barcodes = do
   where
     f xs = (barcodes V.! (head xs ^. _2), map (\(i,_,x) -> (i,x)) xs)
 {-# INLINE mkSpMatrixMM #-}
-
-transformation :: ConduitT (Row a) (Row b) (ResourceT IO) ()
-               -> SpMatrix a
-               -> SpMatrix b
-transformation f SpMatrix{..} = SpMatrix _num_row _num_col _source $ \s -> 
-    _streamer s .| f
-{-# INLINE transformation #-}
 
 saveMatrix :: FilePath
            -> (a -> B.ByteString)

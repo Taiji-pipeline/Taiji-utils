@@ -38,7 +38,7 @@ import           Data.Maybe
 import Data.Function (on)
 import Data.Ord
 import           Taiji.Types
-import           Control.Monad.Reader              (asks, ReaderT, liftIO)
+import           Control.Monad.Reader              (asks, ReaderT)
 import Text.Printf (printf)
 import Data.Double.Conversion.ByteString (toShortest)
 import Data.ByteString.Lex.Integral (packDecimal)

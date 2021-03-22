@@ -58,9 +58,9 @@ parser_correct = subparsers.add_parser('correct', help='batch correction')
 parser_correct.add_argument('input', type=str, help='input matrix')
 parser_correct.add_argument('output', type=str, help='output')
 parser_correct.add_argument('--label', type=str, help='labels')
-parser_correct.add_argument('-k', type=int, default=20, help='number of centroids')
-parser_correct.add_argument('-n', type=int, default=2, help='number of nearest neighbors')
-parser_correct.add_argument('--iter', type=int, default=1, help='number of iterations')
+parser_correct.add_argument('-k', type=int, default=40, help='number of centroids')
+parser_correct.add_argument('-n', type=int, default=5, help='number of nearest neighbors')
+parser_correct.add_argument('--iter', type=int, default=2, help='number of iterations')
 parser_correct.set_defaults(func=MNCCorrectMain)
 
 # create the parser for the "viz" command

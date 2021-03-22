@@ -4,6 +4,7 @@
 module Taiji.Utils.Clustering
     ( evalClusters
     , computeClusterMetrics
+    , computeReproducibility
     , readKNNGraph
     , optimalParam
     , visualizeCluster
@@ -22,7 +23,7 @@ import qualified Data.Text as T
 import qualified Data.HashSet as S
 import qualified Data.HashMap.Strict as M
 import Data.Hashable (Hashable)
-import Control.Arrow (first)
+import Control.Arrow (first, second)
 import Conduit
 import qualified Data.Vector as V
 import qualified Data.Vector.Mutable as VM
@@ -69,6 +70,13 @@ evalClusters dir optimizer res knn = do
         xs <- take n . V.toList <$> uniformShuffle (V.fromList $ edges gr) gen
         return $ delEdges xs gr
 
+computeReproducibility :: [[Int]] -- ^ cluster
+                       -> [[Int]]  -- ^ perturbed clusters
+                       -> [Double]
+computeReproducibility a bs = map (mean . U.fromList) $ transpose $ flip map bs $ \b ->
+    let b' = U.fromList b
+    in map (reproducibility . map (b' U.!)) a
+
 computeClusterMetrics :: ([FilePath], FilePath)
                       -> FilePath
                       -> IO (Int, Double, Double)
@@ -92,16 +100,21 @@ computeClusterMetrics (perturbed, cl) coordinate = do
     comb _ = []
 
 readKNNGraph :: FilePath -> IO (Graph 'U () Double)
-readKNNGraph fl = runResourceT $ runConduit $ sourceFile fl .| linesUnboundedAsciiC .| sink
+readKNNGraph fl = runResourceT $ runConduit $ sourceFile fl .|
+    multiple ungzip .| linesUnboundedAsciiC .| sink
   where
     sink = do
         n <- headC >>= \case
             Nothing -> error ""
             Just x -> return $ readInt x
         es <- mapC f .| sinkList
-        return $ mkGraph (replicate n ()) es
+        return $ mkGraph (replicate n ()) $ replaceInf es
     f x = let (a:b:c:_) = B.split '\t' x
-          in ((readInt a, readInt b), readDouble c)
+          in ((readInt a, readInt b), readDouble' c)
+    readDouble' x | x == "inf" = Nothing
+                  | otherwise = Just $ readDouble x
+    replaceInf es = let m = maximum $ mapMaybe snd es
+                    in map (second (fromMaybe m)) es
 
 optimalParam :: FilePath
              -> [(Double, (Int, Double, Double))]
@@ -126,7 +139,7 @@ optimalParam output input = do
 
 visualizeCluster :: [CellCluster] -> [EChart]
 visualizeCluster cls =
-    [ addAttr toolbox $ scatter' $ flip map cls $ \(CellCluster nm cells) ->
+    [ addAttr toolbox $ scatter' $ flip map cls $ \(CellCluster nm cells _) ->
         (B.unpack nm, map _cell_2d cells) ] ++ if noName then [] else
           [ addAttr toolbox $ scatter' $ map (first head . unzip) $
               groupBy ((==) `on` fst) $ sortBy (comparing fst) $ concatMap
@@ -210,7 +223,7 @@ batchAveraging labels input = withTempDir Nothing $ \dir -> do
 {-# INLINE batchAveraging #-}
 
 leiden :: Double -> Optimizer -> Graph 'U () Double -> IO [[Int]]
-leiden resolution optimizer gr = withSeed 9304 $ 
+leiden resolution optimizer gr = withSeed 9304 $ fmap (sortBy (flip (comparing length))) .
     I.findCommunity gr nodeWeight (Just id) I.leiden{I._resolution=res}
   where
     (nodeWeight, res) = case optimizer of 
@@ -218,6 +231,15 @@ leiden resolution optimizer gr = withSeed 9304 $
             ( Just $ \i _ -> foldl1' (+) $ map (\j -> edgeLab gr (i, j)) $ neighbors gr i
             , resolution / (2 * (foldl1' (+) $ map snd $ labEdges gr)))
         CPM -> (Nothing, resolution)
+
+-- |
+reproducibility :: [Int]   -- membership
+                -> Double
+reproducibility xs = fromIntegral sameGroup / fromIntegral (c2 $ length xs)
+  where
+    counts = M.elems $ M.fromListWith (+) $ zip xs $ repeat (1 :: Int)
+    sameGroup = foldl1' (+) $ map c2 counts
+    c2 x = (x * (x - 1)) `div` 2
 
 -- | Adjusted Rand Index: <http://en.wikipedia.org/wiki/Rand_index>
 ari :: ([Int], [Int]) -> Double

@@ -50,6 +50,7 @@ import qualified Data.Text as T
 import Lens.Micro ((^.))
 import qualified Data.ByteString.Char8  as B
 import qualified Data.HashMap.Strict as M
+import qualified Data.Map.Strict as Map
 import           Data.CaseInsensitive   (CI, mk, original)
 import           Data.Default.Class
 import Data.Maybe
@@ -71,6 +72,7 @@ data TaijiConfig = TaijiConfig
     , _taiji_external_network :: Maybe FilePath
     , _taiji_scatac_cluster_resolution_list :: [Double]
     , _taiji_scatac_cluster_resolution :: Maybe Double
+    , _taiji_scatac_subcluster_resolution :: Maybe (Map.Map T.Text Double)
     , _taiji_cluster_optimizer :: Optimizer
     , _taiji_blacklist :: Maybe FilePath
     , _taiji_callpeak_fdr :: Maybe Double
@@ -78,6 +80,7 @@ data TaijiConfig = TaijiConfig
     , _taiji_scatac_cell_barcode_length :: Maybe Int
     , _taiji_scatac_te_cutoff :: Maybe Double
     , _taiji_scatac_minimal_fragment :: Int
+    , _taiji_scatac_doublet_score_cutoff :: Double
     , _taiji_scrna_cell_barcode_length :: Maybe Int
     , _taiji_scrna_umi_length :: Maybe Int
     , _taiji_scrna_doublet_score_cutoff :: Double
@@ -120,6 +123,7 @@ instance FromJSON TaijiConfig where
             <*> v .:? "external_network"
             <*> v .:? "scatac_cluster_resolution_list" .!= resolutions
             <*> v .:? "scatac_cluster_resolution"
+            <*> v .:? "scatac_subcluster_resolution"
             <*> v .:? "cluster_optimizer" .!= RBConfiguration
             <*> v .:? "blacklist"
             <*> v .:? "callpeak_fdr"
@@ -132,6 +136,7 @@ instance FromJSON TaijiConfig where
             <*> v .:? "scatac_cell_barcode_length"
             <*> v .:? "tss_enrichment_cutoff"
             <*> v .:? "scatac_fragment_cutoff" .!= 1000
+            <*> v .:? "scatac_doublet_score_cutoff" .!= 0.5
             <*> v .:? "scrna_cell_barcode_length"
             <*> v .:? "scrna_umi_length"
             <*> v .:? "scrna_doublet_score_cutoff" .!= 0.5
@@ -249,10 +254,6 @@ edgeToLine NetEdge{..} = B.intercalate "," $
 instance Default (CI B.ByteString) where
     def = ""
 
-instance Binary Value where
-    put x = put $ encode x
-    get = fromJust . decode <$> get
-
 -- | Affinity score of a TF binding site, from 0 to 1.
 newtype SiteAffinity = SiteAffinity
     { getSiteAffinity :: Double } deriving (Ord, Eq)
@@ -284,6 +285,7 @@ data SiteInfo = SiteInfo
 data CellCluster = CellCluster
     { _cluster_name :: B.ByteString
     , _cluster_member :: [Cell]
+    , _cluster_reproducibility :: Maybe Double
     } deriving (Generic, Show)
 
 instance Binary CellCluster
