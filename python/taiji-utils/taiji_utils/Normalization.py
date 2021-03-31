@@ -65,20 +65,19 @@ def fitPoisson(X, Y):
 def sctransform(cellxgene, nFeat=3000):
     r, c = cellxgene.get_shape()
     X = np.log10(cellxgene.sum(axis=1))
-    gene_mean = gmeans(cellxgene)
+    log_gene_mean = np.log10(gmeans(cellxgene))
     params = []
-    idx = kdeSample(gene_mean)
+    idx = kdeSample(log_gene_mean)
     for i in idx:
         Y = cellxgene.getcol(i).todense()
         params.append(fitNB(X, Y))
     params = np.array(params)
-    gene_mean = np.log10(gene_mean)
-    beta0_fit = fitSmooth(gene_mean[idx], params[:, 0]) 
-    beta1_fit = fitSmooth(gene_mean[idx], params[:, 1]) 
-    alpha_fit = fitSmooth(gene_mean[idx], np.log(params[:, 2]))
-    beta0 = beta0_fit.predict(gene_mean[:, None])
-    beta1 = beta1_fit.predict(gene_mean[:, None])
-    alpha = np.exp(alpha_fit.predict(gene_mean[:, None]))
+    beta0_fit = fitSmooth(log_gene_mean[idx], params[:, 0]) 
+    beta1_fit = fitSmooth(log_gene_mean[idx], params[:, 1]) 
+    alpha_fit = fitSmooth(log_gene_mean[idx], np.log(params[:, 2]))
+    beta0 = beta0_fit.predict(log_gene_mean[:, None])
+    beta1 = beta1_fit.predict(log_gene_mean[:, None])
+    alpha = np.exp(alpha_fit.predict(log_gene_mean[:, None]))
 
     mu = np.exp(np.tile(beta0[np.newaxis, :], (r, 1)) + np.matmul(X[:, np.newaxis], beta1[np.newaxis, :]))
     sigma = np.sqrt(mu + np.multiply(np.tile(alpha[np.newaxis, :], (r, 1)),  np.square(mu)))
@@ -88,7 +87,7 @@ def sctransform(cellxgene, nFeat=3000):
     features = dispersion.argsort()[-nFeat:]
 
     v = np.ravel(np.var(z, axis=0))
-    plt.scatter(gene_mean, v, c='k', zorder=1, edgecolors=(0, 0, 0))
+    plt.scatter(log_gene_mean, v, c='k', zorder=1, edgecolors=(0, 0, 0))
     plt.xlabel('gene mean')
     plt.ylabel('variance')
     plt.title('')

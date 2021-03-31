@@ -129,20 +129,17 @@ computeSS df = df{ DF._dataframe_data = mat}
     q_t xs = V.map (\x -> e - logBase 2 x) xs
       where
         e = negate $ V.sum $ V.map (\p -> p * logBase 2 p) xs
-    normalize xs = V.map (/s) xs'
+    normalize xs = V.map (/s) xs
       where
-        s = V.sum xs'
-        xs' = V.map (+pseudoCount) xs
-        pseudoCount = 1
+        s = V.sum xs
 {-# INLINE computeSS #-}
 
 computeCDF :: DF.DataFrame Double -> IO (V.Vector Double, Double, Double)
 computeCDF df = do
     gen <- create
-    let std = let rows = filter ((>5) . V.maximum) $ Mat.toRows $
-                      Mat.map (+1) $ DF._dataframe_data df
+    let std = let rows = filter ((>1) . V.maximum) $ Mat.toRows $ DF._dataframe_data df
                   f xs = (xs, 1 / entropy (normalize xs))
-                  n = truncate $ (0.7 :: Double) * fromIntegral (length rows)
+                  n = truncate $ (0.3 :: Double) * fromIntegral (length rows)
                   getFold xs = let m = mean xs in V.map (logBase 2 . (/m)) xs
                   entropy xs = negate $ V.sum $ V.map (\p -> p * logBase 2 p) xs
               in sqrt $ varianceUnbiased $ V.concat $ map (getFold . fst) $

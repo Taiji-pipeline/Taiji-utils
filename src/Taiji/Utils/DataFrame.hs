@@ -62,6 +62,7 @@ import qualified Data.HashSet as HS
 import Statistics.Correlation (pearsonMatByRow, spearmanMatByRow)
 import Statistics.Matrix (toRowLists, fromRowLists)
 import Data.Binary (Binary)
+import Control.DeepSeq (NFData)
 
 data DataFrame a = DataFrame
     { _dataframe_row_names :: V.Vector T.Text
@@ -73,6 +74,7 @@ data DataFrame a = DataFrame
 
 instance Binary a => Binary (M.Matrix a)
 instance Binary a => Binary (DataFrame a)
+instance NFData a => NFData (DataFrame a)
 
 mkDataFrame :: [T.Text]     -- ^ row names
             -> [T.Text]     -- ^ col names
