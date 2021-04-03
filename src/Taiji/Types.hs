@@ -5,6 +5,8 @@
 {-# LANGUAGE RecordWildCards #-}
 module Taiji.Types
     ( TaijiConfig(..)
+    , SCATACSeqOptions(..)
+    , SCRNASeqOptions(..)
     , readBatchInfo
     , fetchGenome
     , fetchAnnotation
@@ -57,8 +59,75 @@ import Data.Maybe
 import           Data.Binary (Binary(..))
 import qualified Data.Serialize as S
 import           GHC.Generics           (Generic)
+import Numeric.Natural (Natural)
 import Control.DeepSeq (NFData)
 import Data.Double.Conversion.ByteString (toShortest)
+
+data SCATACSeqOptions = SCATACSeqOptions
+    { _scatac_cluster_optimizer :: Optimizer
+    , _scatac_cluster_resolution_list :: [Double]
+    , _scatac_cluster_resolution :: Maybe Double
+    , _scatac_subcluster_resolution :: Maybe (Map.Map T.Text Double)
+    , _scatac_cluster_by_window :: Bool
+    , _scatac_cell_barcode_length :: Maybe Natural
+    , _scatac_te_cutoff :: Double
+    , _scatac_minimal_fragment :: Natural
+    , _scatac_doublet_score_cutoff :: Double
+    , _scatac_window_size :: Natural
+    } deriving (Generic)
+
+instance Binary SCATACSeqOptions
+
+-- Drop "_scatac_" prefix
+instance ToJSON SCATACSeqOptions where
+    toJSON = genericToJSON defaultOptions
+        { fieldLabelModifier = drop 8 }
+    toEncoding = genericToEncoding defaultOptions
+        { fieldLabelModifier = drop 8 }
+
+instance FromJSON SCATACSeqOptions where
+    parseJSON = withObject "SCATACSeqOptions" $ \v -> SCATACSeqOptions
+        <$> v .:? "cluster_optimizer" .!= RBConfiguration
+        <*> v .:? "cluster_resolution_list" .!= resolutions
+        <*> v .:? "cluster_resolution"
+        <*> v .:? "subcluster_resolution"
+        <*> v .:? "cluster_by_window" .!= False
+        <*> v .:? "cell_barcode_length"
+        <*> v .:? "tss_enrichment_cutoff" .!= 5
+        <*> v .:? "fragment_cutoff" .!= 1000
+        <*> v .:? "doublet_score_cutoff" .!= 0.5
+        <*> v .:? "window_size" .!= 5000
+      where
+        resolutions = [0.005, 0.01, 0.02, 0.04, 0.08, 0.16, 0.32, 0.64, 0.8, 1]
+
+data SCRNASeqOptions = SCRNASeqOptions
+    { _scrna_cluster_optimizer :: Optimizer
+    , _scrna_cluster_resolution_list :: [Double]
+    , _scrna_cluster_resolution :: Maybe Double
+    , _scrna_cell_barcode_length :: Maybe Natural
+    , _scrna_umi_length :: Maybe Natural
+    , _scrna_doublet_score_cutoff :: Double
+    } deriving (Generic)
+
+instance Binary SCRNASeqOptions
+
+-- Drop "_scrna_" prefix
+instance ToJSON SCRNASeqOptions where
+    toJSON = genericToJSON defaultOptions
+        { fieldLabelModifier = drop 7 }
+    toEncoding = genericToEncoding defaultOptions
+        { fieldLabelModifier = drop 7 }
+
+instance FromJSON SCRNASeqOptions where
+    parseJSON = withObject "SCRNASeqOptions" $ \v -> SCRNASeqOptions
+        <$> v .:? "cluster_optimizer" .!= RBConfiguration
+        <*> v .:? "cluster_resolution_list" .!= resolutions
+        <*> v .:? "cluster_resolution"
+        <*> v .:? "cell_barcode_length"
+        <*> v .:? "umi_length"
+        <*> v .:? "doublet_score_cutoff" .!= 0.5
+      where
+        resolutions = [0.005, 0.01, 0.02, 0.04, 0.08, 0.16, 0.32, 0.64, 0.8, 1]
 
 data TaijiConfig = TaijiConfig
     { _taiji_output_dir   :: Directory
@@ -70,28 +139,16 @@ data TaijiConfig = TaijiConfig
     , _taiji_motif_file   :: Maybe FilePath
     , _taiji_tmp_dir      :: Maybe FilePath
     , _taiji_external_network :: Maybe FilePath
-    , _taiji_scatac_cluster_resolution_list :: [Double]
-    , _taiji_scatac_cluster_resolution :: Maybe Double
-    , _taiji_scatac_subcluster_resolution :: Maybe (Map.Map T.Text Double)
-    , _taiji_scatac_cluster_by_window :: Bool
-    , _taiji_cluster_optimizer :: Optimizer
     , _taiji_blacklist :: Maybe FilePath
     , _taiji_callpeak_fdr :: Maybe Double
     , _taiji_callpeak_genome_size :: Maybe String
-    , _taiji_scatac_cell_barcode_length :: Maybe Int
-    , _taiji_scatac_te_cutoff :: Maybe Double
-    , _taiji_scatac_minimal_fragment :: Int
-    , _taiji_scatac_doublet_score_cutoff :: Double
-    , _taiji_scrna_cell_barcode_length :: Maybe Int
-    , _taiji_scrna_umi_length :: Maybe Int
-    , _taiji_scrna_doublet_score_cutoff :: Double
-    , _taiji_scrna_cluster_resolution_list :: [Double]
-    , _taiji_scrna_cluster_resolution :: Maybe Double
     , _taiji_bwa_index    :: FilePath
     , _taiji_bwa_seed_length :: Int
     , _taiji_star_index   :: FilePath
     , _taiji_genome_index :: FilePath
     , _taiji_rsem_index   :: FilePath
+    , _taiji_scatac_options :: SCATACSeqOptions
+    , _taiji_scrna_options :: SCRNASeqOptions
     } deriving (Generic)
 
 instance Binary TaijiConfig
@@ -111,7 +168,6 @@ instance FromJSON TaijiConfig where
             assembly = case M.lookup "assembly" v of
                 Just (String x) -> Just $ T.unpack $ T.toUpper x
                 _ -> Nothing
-            resolutions = [0.005, 0.01, 0.02, 0.04, 0.08, 0.16, 0.32, 0.64, 0.8, 1]
         TaijiConfig
             <$> v .:? "output_dir" .!= "output/"
             <*> v .: "input"
@@ -122,11 +178,6 @@ instance FromJSON TaijiConfig where
             <*> v .:? "motif_file" .!= fmap (\x -> genomeDir ++ x ++ ".meme") assembly
             <*> v .:? "tmp_dir"
             <*> v .:? "external_network"
-            <*> v .:? "scatac_cluster_resolution_list" .!= resolutions
-            <*> v .:? "scatac_cluster_resolution"
-            <*> v .:? "scatac_subcluster_resolution"
-            <*> v .:? "scatac_cluster_by_window" .!= False
-            <*> v .:? "cluster_optimizer" .!= RBConfiguration
             <*> v .:? "blacklist"
             <*> v .:? "callpeak_fdr"
             <*> v .:? "callpeak_genome_size" .!= ( case assembly of
@@ -135,15 +186,6 @@ instance FromJSON TaijiConfig where
                     _ | ass `elem` mouseGenome -> Just "mm"
                       | ass `elem` humanGenome -> Just "hs"
                       | otherwise -> Nothing )
-            <*> v .:? "scatac_cell_barcode_length"
-            <*> v .:? "tss_enrichment_cutoff"
-            <*> v .:? "scatac_fragment_cutoff" .!= 1000
-            <*> v .:? "scatac_doublet_score_cutoff" .!= 0.5
-            <*> v .:? "scrna_cell_barcode_length"
-            <*> v .:? "scrna_umi_length"
-            <*> v .:? "scrna_doublet_score_cutoff" .!= 0.5
-            <*> v .:? "scrna_cluster_resolution_list" .!= resolutions
-            <*> v .:? "scrna_cluster_resolution"
             <*> v .:? "bwa_index" .!=
                 (genomeDir <> "BWA_index/" <> fromMaybe "genome" assembly <> ".fa")
             <*> v .:? "bwa_seed_length" .!= 32
@@ -152,6 +194,8 @@ instance FromJSON TaijiConfig where
                 (genomeDir <> fromMaybe "genome" assembly <> ".index")
             <*> v .:? "rsem_index" .!=
                 (genomeDir <> "RSEM_index/" <> fromMaybe "genome" assembly)
+            <*> ((v .:? "scatac_options" .!= object []) >>= parseJSON)
+            <*> ((v .:? "scrna_options" .!= object []) >>= parseJSON)
 
 readBatchInfo :: FilePath -> IO [(B.ByteString, (B.ByteString, Maybe B.ByteString))]
 readBatchInfo fl = do
