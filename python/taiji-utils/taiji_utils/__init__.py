@@ -2,6 +2,7 @@ import argparse
 
 from .Clustering import clustering, mkKNNGraph
 from .Spectral import spectral
+from .Spectral_v2 import spectral_fit, spectral_predict
 from .Doublet import detectDoublet
 from .BatchCorrect import MNCCorrectMain
 from .Viz import Viz
@@ -27,6 +28,24 @@ parser_reduce.add_argument('--dim', default=30, type=int, help='number of dimens
 parser_reduce.add_argument('--seed', default=3484, type=int, help='random seed')
 parser_reduce.add_argument('--distance', default="jaccard", type=str, help='distance: jaccard or cosine')
 parser_reduce.set_defaults(func=spectral)
+
+# create the parser for the "fit" command
+parser_fit = subparsers.add_parser('fit', help='fit')
+parser_fit.add_argument('input', type=str, help='gzipped input file')
+parser_fit.add_argument('--input-format', default="sparse", type=str)
+parser_fit.add_argument('--sampling-rate', default=1, type=float)
+parser_fit.add_argument('output', type=str, help='model')
+parser_fit.add_argument('--dim', default=30, type=int, help='number of dimension')
+parser_fit.add_argument('--distance', default="jaccard", type=str, help='distance: jaccard or cosine')
+parser_fit.set_defaults(func=spectral_fit)
+
+# create the parser for the "predict" command
+parser_predict = subparsers.add_parser('predict', help='predict')
+parser_predict.add_argument('output', type=str, help='output matrix in .npy format')
+parser_predict.add_argument('--input', default=None, type=str, help='gzipped input file')
+parser_predict.add_argument('--input-format', default="sparse", type=str)
+parser_predict.add_argument('--model', type=str)
+parser_predict.set_defaults(func=spectral_predict)
 
 # create the parser for the "knn" command
 parser_knn = subparsers.add_parser('knn', help='Make KNN graph')

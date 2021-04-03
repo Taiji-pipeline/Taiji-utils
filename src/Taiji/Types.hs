@@ -73,6 +73,7 @@ data TaijiConfig = TaijiConfig
     , _taiji_scatac_cluster_resolution_list :: [Double]
     , _taiji_scatac_cluster_resolution :: Maybe Double
     , _taiji_scatac_subcluster_resolution :: Maybe (Map.Map T.Text Double)
+    , _taiji_scatac_cluster_by_window :: Bool
     , _taiji_cluster_optimizer :: Optimizer
     , _taiji_blacklist :: Maybe FilePath
     , _taiji_callpeak_fdr :: Maybe Double
@@ -124,6 +125,7 @@ instance FromJSON TaijiConfig where
             <*> v .:? "scatac_cluster_resolution_list" .!= resolutions
             <*> v .:? "scatac_cluster_resolution"
             <*> v .:? "scatac_subcluster_resolution"
+            <*> v .:? "scatac_cluster_by_window" .!= False
             <*> v .:? "cluster_optimizer" .!= RBConfiguration
             <*> v .:? "blacklist"
             <*> v .:? "callpeak_fdr"

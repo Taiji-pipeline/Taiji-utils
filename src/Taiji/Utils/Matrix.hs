@@ -20,6 +20,7 @@ module Taiji.Utils.Matrix
     , decodeRowWith
     , encodeRowWith
     , colSum
+    , colSumC
     , meanVariance
 
     , mapRows
@@ -29,7 +30,6 @@ module Taiji.Utils.Matrix
     , selectRows
     , filterCols
     , concatMatrix
-    , concatMatrix'
     , mergeMatrices
     ) where
 
@@ -183,6 +183,17 @@ colSum mat = do
     f vec (_, xs) = forM_ xs $ \(i, x) -> UM.unsafeModify vec (+x) i
 {-# INLINE colSum #-}
 
+colSumC :: (Num a, U.Unbox a, PrimMonad m)
+        => Int   -- ^ columns
+        -> ConduitT (Row a) o m (U.Vector a)
+colSumC nCol = do
+    vec <- UM.replicate nCol 0
+    mapM_C $ f vec
+    U.unsafeFreeze vec
+  where
+    f vec (_, xs) = forM_ xs $ \(i, x) -> UM.unsafeModify vec (+x) i
+{-# INLINE colSumC #-}
+
 meanVariance :: SpMatrix Double
              -> IO (U.Vector (Double, Double)) 
 meanVariance mat = do
@@ -270,39 +281,15 @@ filterCols output idx input = do
     go (prev, c) (i:x) = replicate (i-prev) c ++ go (i, c+1) x
     go (_, c) [] = repeat c
 
-concatMatrix' :: [SpMatrix a]
-              -> SpMatrix a
-concatMatrix' mats
+concatMatrix :: [SpMatrix a]
+             -> SpMatrix a
+concatMatrix mats
     | any (/=nCol) (map _num_col mats) = error "Column unmatched!"
     | otherwise = SpMatrix nRow nCol mats $ mapM_ streamRows
   where
     nRow = sum $ map _num_row mats
     nCol = _num_col $ head mats
-{-# INLINE concatMatrix' #-}
-
--- | Combine rows of matrices. The matrices should have same column names.
-concatMatrix :: FilePath   -- ^ Output merged matrix
-             -> [(Maybe B.ByteString, FilePath)] -- ^ A list of matrix
-             -> IO ()
-concatMatrix output inputs = do
-    mats <- forM inputs $ \(nm, fl) -> do
-        mat <- mkSpMatrix id fl
-        return (nm, mat)
-    runResourceT $ runConduit $ merge mats .| sinkFile output
-  where
-    merge mats
-        | any (/=nBin) (map (_num_col . snd) mats) = error "Column unmatched!"
-        | otherwise = source .| (yield header >> mapC (encodeRowWith id)) .|
-            unlinesAsciiC .| gzip
-      where
-        source = forM_ mats $ \(nm, mat) ->
-            let f x = case nm of
-                    Nothing -> x
-                    Just n -> n <> "+" <> x
-            in streamRows mat .| mapC (first f)
-        nCell = foldl' (+) 0 $ map (_num_row . snd) mats
-        nBin = _num_col $ snd $ head mats
-        header = B.pack $ printf "Sparse matrix: %d x %d" nCell nBin
+{-# INLINE concatMatrix #-}
 
 mergeMatrices :: [(V.Vector B.ByteString, SpMatrix a)]
               -> (V.Vector B.ByteString, SpMatrix a)
