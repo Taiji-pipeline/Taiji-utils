@@ -67,8 +67,9 @@ data SCATACSeqOptions = SCATACSeqOptions
     { _scatac_cluster_optimizer :: Optimizer
     , _scatac_cluster_resolution_list :: [Double]
     , _scatac_cluster_resolution :: Maybe Double
-    , _scatac_subcluster_resolution :: Maybe (Map.Map T.Text Double)
     , _scatac_cluster_by_window :: Bool
+    , _scatac_do_subclustering :: Bool
+    , _scatac_subcluster_resolution :: Maybe (Map.Map T.Text Double)
     , _scatac_cell_barcode_length :: Maybe Natural
     , _scatac_te_cutoff :: Double
     , _scatac_minimal_fragment :: Natural
@@ -90,8 +91,9 @@ instance FromJSON SCATACSeqOptions where
         <$> v .:? "cluster_optimizer" .!= RBConfiguration
         <*> v .:? "cluster_resolution_list" .!= resolutions
         <*> v .:? "cluster_resolution"
-        <*> v .:? "subcluster_resolution"
         <*> v .:? "cluster_by_window" .!= False
+        <*> v .:? "do_subclustering" .!= False
+        <*> v .:? "subcluster_resolution"
         <*> v .:? "cell_barcode_length"
         <*> v .:? "tss_enrichment_cutoff" .!= 5
         <*> v .:? "fragment_cutoff" .!= 1000

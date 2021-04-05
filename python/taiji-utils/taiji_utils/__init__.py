@@ -88,6 +88,7 @@ parser_viz = subparsers.add_parser('viz', help='UMAP embedding')
 parser_viz.add_argument('input', type=str, help='input matrix')
 parser_viz.add_argument('output', type=str, help='output')
 parser_viz.add_argument('-k', type=int, default=50, help='number of neighbors')
+parser_viz.add_argument('-t', type=str, default=None, help='target')
 parser_viz.set_defaults(func=Viz)
 
 # 
