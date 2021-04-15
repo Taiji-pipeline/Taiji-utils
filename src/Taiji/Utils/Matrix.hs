@@ -191,7 +191,7 @@ colSumC nCol = do
     mapM_C $ f vec
     U.unsafeFreeze vec
   where
-    f vec (_, xs) = forM_ xs $ \(i, x) -> UM.unsafeModify vec (+x) i
+    f vec (_, xs) = forM_ xs $ \(i, x) -> UM.modify vec (+x) i
 {-# INLINE colSumC #-}
 
 meanVariance :: SpMatrix Double

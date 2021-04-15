@@ -68,6 +68,7 @@ data SCATACSeqOptions = SCATACSeqOptions
     , _scatac_cluster_resolution_list :: [Double]
     , _scatac_cluster_resolution :: Maybe Double
     , _scatac_cluster_by_window :: Bool
+    , _scatac_cluster_exclude :: [T.Text]
     , _scatac_do_subclustering :: Bool
     , _scatac_subcluster_resolution :: Maybe (Map.Map T.Text Double)
     , _scatac_cell_barcode_length :: Maybe Natural
@@ -92,6 +93,7 @@ instance FromJSON SCATACSeqOptions where
         <*> v .:? "cluster_resolution_list" .!= resolutions
         <*> v .:? "cluster_resolution"
         <*> v .:? "cluster_by_window" .!= False
+        <*> v .:? "cluster_exclude" .!= []
         <*> v .:? "do_subclustering" .!= False
         <*> v .:? "subcluster_resolution"
         <*> v .:? "cell_barcode_length"
