@@ -41,7 +41,15 @@ def spectral_predict(args):
         mat = readMatrix(args.input, binary=True)
     else:
         mat = readMatrix(args.input, binary=False)
-    result = model.predict(mat)
+    n, _ = mat.shape
+    chunkSize = 10000
+    result = []
+    i = 0
+    while i < n:
+        j = i + chunkSize
+        result.append(model.predict(mat[i:j, :]))
+        i = j
+    result = np.concatenate(result, axis=0)[:, 1:]
     np.savetxt(args.output, result, delimiter='\t')
 
 class Spectral:
