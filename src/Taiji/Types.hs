@@ -74,6 +74,7 @@ data SCATACSeqOptions = SCATACSeqOptions
     , _scatac_cell_barcode_length :: Maybe Natural
     , _scatac_te_cutoff :: Double
     , _scatac_minimal_fragment :: Natural
+    , _scatac_remove_doublets :: Bool
     , _scatac_doublet_score_cutoff :: Double
     , _scatac_window_size :: Natural
     } deriving (Generic)
@@ -99,6 +100,7 @@ instance FromJSON SCATACSeqOptions where
         <*> v .:? "cell_barcode_length"
         <*> v .:? "tss_enrichment_cutoff" .!= 5
         <*> v .:? "fragment_cutoff" .!= 1000
+        <*> v .:? "remove_doublets" .!= True
         <*> v .:? "doublet_score_cutoff" .!= 0.5
         <*> v .:? "window_size" .!= 5000
       where
