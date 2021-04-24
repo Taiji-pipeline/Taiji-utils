@@ -153,7 +153,7 @@ sinkRows' :: Int   -- ^ Number of cols
           -> ConduitT (Row a) Void (ResourceT IO) ()
 sinkRows' m encoder output = do
     (n, tmp) <- mapC (encodeRowWith encoder) .| zipSinks lengthC sink
-    let header = B.pack $ printf "Sparse matrix: %d x %d\n" n m
+    let header = B.pack $ printf "Sparse matrix: %d x %d\n" (n :: Int) m
     (yield header >> sourceFile tmp) .| gzip .| sinkFile output
   where
     sink = unlinesAsciiC .| sinkTempFile "./" "tmp" 
