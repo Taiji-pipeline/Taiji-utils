@@ -26,6 +26,8 @@ module Taiji.Utils.Matrix
     , mapRows
     , deleteCols
     , selectCols
+    , dropRows
+    , takeRows
     , deleteRows
     , selectRows
     , filterCols
@@ -151,8 +153,8 @@ sinkRows' :: Int   -- ^ Number of cols
           -> ConduitT (Row a) Void (ResourceT IO) ()
 sinkRows' m encoder output = do
     (n, tmp) <- mapC (encodeRowWith encoder) .| zipSinks lengthC sink
-    sourceFile tmp .| linesUnboundedAsciiC .| mapC (decodeRowWith id) .|
-        sinkRows n m id output
+    let header = B.pack $ printf "Sparse matrix: %d x %d\n" n m
+    (yield header >> sourceFile tmp) .| gzip .| sinkFile output
   where
     sink = unlinesAsciiC .| sinkTempFile "./" "tmp" 
 {-# INLINE sinkRows' #-}
@@ -235,6 +237,16 @@ selectCols idx mat = (mapRows (second changeIdx) mat){_num_col = IS.size idx'}
                | otherwise = Just (-1, (i+1, acc))
     idx' = IS.fromList $ filter (\x -> x >= 0 && x < _num_col mat) idx
 {-# INLINE selectCols #-}
+
+dropRows :: Int -> SpMatrix a -> SpMatrix a
+dropRows n SpMatrix{..} = SpMatrix (max 0 $ _num_row - n) _num_col _source $ \s ->
+    (_streamer s) .| (dropC n >> mapC id)
+{-# INLINE dropRows #-}
+
+takeRows :: Int -> SpMatrix a -> SpMatrix a
+takeRows n SpMatrix{..} = SpMatrix (min n _num_row) _num_col _source $ \s ->
+    (_streamer s) .| takeC n
+{-# INLINE takeRows #-}
 
 selectRows :: [Int]  -- ^ Rows to be kept
            -> SpMatrix a -> SpMatrix a
