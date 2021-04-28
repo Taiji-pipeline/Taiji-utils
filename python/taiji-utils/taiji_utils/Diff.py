@@ -1,3 +1,6 @@
+import os
+os.environ['OPENBLAS_NUM_THREADS'] = '1'
+os.environ['MKL_NUM_THREADS'] = '1'
 import numpy as np
 import itertools
 from scipy.stats import chi2
@@ -10,7 +13,7 @@ import multiprocessing as mp
 
 from .Utils import InputData, readMatrix
 
-def diff(args):
+def diffAnalysis(args):
     fg = readMatrix(args.input1, binary=False)
     fg_depth = np.log(np.sum(fg, axis=1))
     fg_total = np.sum(fg) / 1000000
@@ -31,9 +34,8 @@ def diff(args):
             idx_set = list(set([int(l.strip()) for l in fl]))
 
     result_list = []
-    '''
     pool = mp.Pool(args.thread)
-    for r in chunkIt(idx_set, 20):
+    for r in chunkIt(idx_set, 100):
         pool.apply_async(process,
             args=(r, fg, bg, idx_set, math.log2(args.fold), X, z, fg_total, bg_total),
             callback = lambda x: result_list.append(x),
@@ -45,6 +47,7 @@ def diff(args):
     for r in chunkIt(idx_set, 20):
         x = process(r, fg, bg, idx_set, math.log2(args.fold), X, z, fg_total, bg_total)
         result_list.append(x)
+    '''
     result = list(itertools.chain.from_iterable(result_list))
     np.savetxt( args.output, computeFDR(np.array(result)),
         header='index\tfraction_1\tfraction_2\tlog2_fold_change\tp-value\tFDR',

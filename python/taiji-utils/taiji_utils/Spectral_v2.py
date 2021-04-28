@@ -41,16 +41,19 @@ def spectral_predict(args):
         mat = readMatrix(args.input, binary=True)
     else:
         mat = readMatrix(args.input, binary=False)
-    n, _ = mat.shape
-    chunkSize = 10000
-    result = []
-    i = 0
-    while i < n:
-        j = i + chunkSize
-        result.append(model.predict(mat[i:j, :]))
-        i = j
-    result = np.concatenate(result, axis=0)[:, 1:]
-    np.savetxt(args.output, result, delimiter='\t')
+    if mat is None:
+        np.savetxt(args.output, model.evecs[:, 1:], delimiter='\t')
+    else:
+        n, _ = mat.shape
+        chunkSize = 10000
+        result = []
+        i = 0
+        while i < n:
+            j = i + chunkSize
+            result.append(model.predict(mat[i:j, :]))
+            i = j
+        result = np.concatenate(result, axis=0)[:, 1:]
+        np.savetxt(args.output, result, delimiter='\t')
 
 class Spectral:
     def __init__(self, n_dim=30, sampling_rate=1, distance="jaccard"):
