@@ -16,6 +16,6 @@ def Viz(args):
         embedding = umap.UMAP(random_state=42,
             n_components=2,
             n_neighbors=args.k, 
-            min_dist=0
+            min_dist=0.1
             ).fit_transform(mat, y = target)
     np.savetxt(args.output, embedding, delimiter='\t')

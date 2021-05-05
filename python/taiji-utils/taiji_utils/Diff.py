@@ -33,46 +33,53 @@ def diffAnalysis(args):
         with open(args.index, 'r') as fl:
             idx_set = list(set([int(l.strip()) for l in fl]))
 
+    f_fg = np.squeeze(np.asarray((fg[:, idx_set].sum(axis=0) + 1) / fg_total))
+    f_bg = np.squeeze(np.asarray((bg[:, idx_set].sum(axis=0) + 1) / bg_total))
+    fd = np.log2(f_fg / f_bg)
+    idx_ = np.flatnonzero(np.absolute(fd) >= math.log2(args.fold)).tolist()
+
+    f_fg = f_fg[idx_]
+    f_bg = f_bg[idx_]
+    fd = fd[idx_]
+    idx_set = [idx_set[i] for i in idx_]
+
     result_list = []
+
     pool = mp.Pool(args.thread)
     for r in chunkIt(idx_set, 100):
+        idx = idx_set[r[0]:r[1]]
         pool.apply_async(process,
-            args=(r, fg, bg, idx_set, math.log2(args.fold), X, z, fg_total, bg_total),
-            callback = lambda x: result_list.append(x),
-            error_callback = lambda x: print(x)
-        ) 
+            args=(fg[:, idx], bg[:, idx], X, z, r),
+            callback = lambda x: result_list.append(np.column_stack(
+                (idx_set[x[1][0]:x[1][1]], f_fg[x[1][0]:x[1][1]], f_bg[x[1][0]:x[1][1]], fd[x[1][0]:x[1][1]], x[0])
+                )),
+            error_callback = lambda: 1/0 
+        )
     pool.close()
     pool.join()
-    '''
-    for r in chunkIt(idx_set, 20):
-        x = process(r, fg, bg, idx_set, math.log2(args.fold), X, z, fg_total, bg_total)
-        result_list.append(x)
-    '''
     result = list(itertools.chain.from_iterable(result_list))
-    np.savetxt( args.output, computeFDR(np.array(result)),
-        header='index\tfraction_1\tfraction_2\tlog2_fold_change\tp-value\tFDR',
-        fmt='%i\t%.5f\t%.5f\t%.5f\t%1.4e\t%1.4e' )
+    if not result:
+        print("result is empty")
+    else:
+        np.savetxt( args.output, computeFDR(np.array(result)),
+            header='index\tfraction_1\tfraction_2\tlog2_fold_change\tp-value\tFDR',
+            fmt='%i\t%.5f\t%.5f\t%.5f\t%1.4e\t%1.4e' )
 
-def process(r, fg, bg, idx_set, fd, X, z, rc_fg, rc_bg):
+def process(fg, bg, X, z, r):
     print(r)
     result = []
-    for ii in range(r[0], r[1]):
-        i = idx_set[ii]
+    _, n = fg.shape
+    for i in range(n):
         y_fg = fg[:, i].todense()
         y_bg = bg[:, i].todense()
 
-        f_fg = (np.sum(y_fg) + 1) / rc_fg
-        f_bg = (np.sum(y_bg) + 1) / rc_bg
-        fold = math.log2(f_fg / f_bg)
-
-        if fd == None or abs(fold) >= fd: 
-            Y = np.ravel(np.concatenate((np.clip(y_fg,0,1), np.clip(y_bg,0,1))))
-            if np.sum(Y) == 0:
-                p = 1
-            else:
-                p = likelihoodTest(X, Y, z)
-            result.append([i, f_fg, f_bg, fold, p])
-    return result
+        Y = np.ravel(np.concatenate((np.clip(y_fg,0,1), np.clip(y_bg,0,1))))
+        if np.sum(Y) == 0:
+            p = 1
+        else:
+            p = likelihoodTest(X, Y, z)
+        result.append(p)
+    return (result, r)
 
 def computeFDR(X):
     if X.size == 0:
