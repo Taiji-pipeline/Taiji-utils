@@ -37,6 +37,7 @@ module Taiji.Utils.Matrix
 
 import Data.Conduit.Zlib (multiple, ungzip, gzip)
 import Control.Arrow (first, second)
+import Data.Conduit.Async (runCConduit, (=$=&))
 import Data.Conduit.Internal (zipSinks, zipSources)
 import qualified Data.Conduit.List as L (groupBy)
 import qualified Data.Text as T
@@ -103,7 +104,7 @@ saveMatrix :: FilePath
            -> (a -> B.ByteString)
            -> SpMatrix a
            -> IO ()
-saveMatrix output f mat = runResourceT $ runConduit $ streamRows mat .|
+saveMatrix output f mat = runResourceT $ runCConduit $ streamRows mat =$=&
     sinkRows (_num_row mat) (_num_col mat) f output
 {-# INLINE saveMatrix #-}
 

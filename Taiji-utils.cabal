@@ -70,6 +70,7 @@ library
                      , microlens-mtl
                      , mtl
                      , statistics
+                     , stm-conduit
                      , shelly
                      , dense-linear-algebra
                      , text

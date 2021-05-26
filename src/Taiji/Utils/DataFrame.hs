@@ -56,6 +56,7 @@ import AI.Clustering.KMeans
 import Data.Vector.Binary ()
 import Data.Maybe
 import qualified Data.Matrix            as M
+import qualified Data.Matrix.Unboxed    as MU
 import qualified Data.Vector            as V
 import qualified Data.Map.Strict    as HM
 import qualified Data.HashSet as HS
@@ -348,8 +349,11 @@ orderByHClust f xs = flatten $ hclust Ward (V.fromList xs) dist
     dist = euclidean `on` V.map f . snd
 
 orderByKMeans :: Int -> (a -> Double) -> ReodrderFn a 
-orderByKMeans k f xs = concat $ fromJust $ clusters $
-    kmeansBy k (V.fromList xs) (V.convert . V.map f . snd) defaultKMeansOpts
+orderByKMeans k f xs = concatMap fst $ flatten $ hclust Ward r dist
+  where
+    r = V.fromList $ L.zip (fromJust $ clusters kmRes) (MU.toRows $ centers kmRes)
+    kmRes = kmeansBy k (V.fromList xs) (V.convert . V.map f . snd) defaultKMeansOpts
+    dist = euclidean `on` snd
 
 pearson :: DataFrame Double -> DataFrame Double
 pearson DataFrame{..} = DataFrame _dataframe_row_names _dataframe_row_names_idx 
