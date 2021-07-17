@@ -105,6 +105,7 @@ class DataFrameIndex i where
     rsub :: DataFrame a -> [i] -> DataFrame a
     rindex :: DataFrame a -> i -> V.Vector a
     (!)  :: DataFrame a -> (i,i) -> a
+    indexMaybe  :: DataFrame a -> (i,i) -> Maybe a
 
 instance DataFrameIndex Int where
     csub df idx = df
@@ -126,6 +127,11 @@ instance DataFrameIndex Int where
     rindex df idx = _dataframe_data df `M.takeRow` idx
 
     (!) df (i,j) = _dataframe_data df M.! (i,j)
+    indexMaybe df (i,j) 
+        | i < r && j < c = Just $ _dataframe_data df M.! (i,j)
+        | otherwise = Nothing
+      where
+        (r, c) = dim df
 
 instance DataFrameIndex T.Text where
     csub df idx = csub df idx'
@@ -156,6 +162,12 @@ instance DataFrameIndex T.Text where
             _dataframe_row_names_idx df
         j = HM.findWithDefault (error $ "index doesn't exist: " ++ T.unpack b) b $
             _dataframe_col_names_idx df
+
+    indexMaybe df (a,b) = case HM.lookup a (_dataframe_row_names_idx df) of
+        Nothing -> Nothing
+        Just i -> case HM.lookup b (_dataframe_col_names_idx df) of
+            Nothing -> Nothing
+            Just j -> Just $ (!) df (i,j)
 
 dim :: DataFrame a -> (Int, Int)
 dim df = M.dim $ _dataframe_data df

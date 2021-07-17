@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
 module Taiji.Utils.Clustering
@@ -35,6 +36,7 @@ import AI.Clustering.Hierarchical.Types (computeDists, (!))
 import AI.Clustering.Hierarchical (euclidean)
 import Statistics.Sample (mean)
 import System.Random.MWC.Distributions
+import Language.Javascript.JMacro
 import System.Random.MWC
 
 import IGraph.Random
@@ -121,21 +123,44 @@ optimalParam :: FilePath
              -> IO Double
 optimalParam output input = do
     savePlots output [] plt
-    return $ fst $ maximumBy (comparing (^._2._2)) $ filter (\x -> x^._2._3 >= 0.9) input
+    return optimal
   where
+    optimal = fst $ maximumBy (comparing (^._2._2)) $ filter (\x -> x^._2._3 >= 0.9) input
     (res, dat) = unzip $ flip map (sortBy (comparing fst) input) $ \(r, (n, sil, stab)) ->
         (r, (fromIntegral n, sil, stab))
     (num, sils, stabs) = unzip3 dat
     plt = map (setDim 400 300 . addAttr toolbox)
         [ addAttr (yAxisLabel "number of clusters") $
                 addAttr (xAxisLabel "resolution") $
-                line' $ zip res num 
+                lineplot $ zip res num 
         , addAttr (yAxisLabel "silhouette width") $
                 addAttr (xAxisLabel "resolution") $
-                line' $ zip res sils
+                lineplot $ zip res sils
         , addAttr (yAxisLabel "stability") $
                 addAttr (xAxisLabel "resolution") $
-                line' $ zip res stabs ]
+                lineplot $ zip res stabs ]
+    lineplot input = mkEChart [jmacroE| {
+        grid: { containLabel: true },
+        xAxis: {
+            type: "value",
+            axisLine: {onZero: false}
+        },
+        tooltip: {
+            trigger: "axis"
+        }, 
+        yAxis: {
+            type: "value",
+            axisLine: {onZero: false}
+        }, 
+        series: [{
+            data: `dataset`,
+            markLine: {symbolSize: 0, precision: 10, data: [{xAxis: `optimal`}]},
+            type: "line"
+        }]
+        } |]
+      where
+        dataset = map (\(x,y) -> [x,y]) input
+    
 
 visualizeCluster :: [CellCluster] -> [EChart]
 visualizeCluster cls =
