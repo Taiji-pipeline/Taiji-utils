@@ -52,6 +52,7 @@ import Data.Matrix.Static.IO (fromMM', toMM)
 import Data.Matrix.Dynamic (fromTriplet, Dynamic(..))
 import System.Random.MWC.Distributions (uniformPermutation)
 import System.Random.MWC
+import System.FilePath (takeDirectory)
 
 import Taiji.Prelude
 
@@ -157,7 +158,7 @@ sinkRows' m encoder output = do
     let header = B.pack $ printf "Sparse matrix: %d x %d\n" (n :: Int) m
     (yield header >> sourceFile tmp) .| gzip .| sinkFile output
   where
-    sink = unlinesAsciiC .| sinkTempFile "./" "tmp" 
+    sink = unlinesAsciiC .| sinkTempFile (takeDirectory output) "tmp" 
 {-# INLINE sinkRows' #-}
 
   
@@ -306,6 +307,7 @@ concatMatrix mats
 
 mergeMatrices :: [(V.Vector B.ByteString, SpMatrix a)]
               -> (V.Vector B.ByteString, SpMatrix a)
+mergeMatrices [x] = x
 mergeMatrices mats = ( V.fromList $ S.toList idxSet
                      , SpMatrix nRow nCol (idxSet, mats) fun )
   where

@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='taiji-utils',
-      version='0.2.3',
+      version='0.3.0',
       description='Taiji pipeline',
       url='https://taiji-pipeline.github.io/', 
       author='Kai Zhang',
@@ -21,5 +21,6 @@ setup(name='taiji-utils',
           'leidenalg',
           'scrublet',
           'csaps',
+          'rpy2',
       ],
       zip_safe=False)

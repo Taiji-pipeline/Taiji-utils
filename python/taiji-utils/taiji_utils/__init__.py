@@ -118,23 +118,16 @@ parser_diff.add_argument('--thread', type=int, default=10, help='number of threa
 parser_diff.set_defaults(func=diff)
 
 # create the parser for the "normalize" command
-def new_norm(args):
-    from .Normalization_New import new_normalize
-    new_normalize(args)
-parser_normalize = subparsers.add_parser('new_normalize', help='')
-parser_normalize.add_argument('input', type=str, help='')
-parser_normalize.add_argument('genemean', type=str, help='')
-parser_normalize.add_argument('cellreads', type=str, help='')
-parser_normalize.add_argument('data', type=str, help='')
-parser_normalize.add_argument('output', type=str, help='')
-parser_normalize.set_defaults(func=new_norm)
-
 def norm(args):
     from .Normalization import normalize
     normalize(args)
 parser_normalize = subparsers.add_parser('normalize', help='')
 parser_normalize.add_argument('input', type=str, help='')
+parser_normalize.add_argument('genemean', type=str, help='')
+parser_normalize.add_argument('cellreads', type=str, help='')
+parser_normalize.add_argument('data', type=str, help='')
 parser_normalize.add_argument('output', type=str, help='')
+parser_normalize.add_argument('--plot-dir', type=str, help='')
 parser_normalize.set_defaults(func=norm)
 
 # create the parser for the "normalize" command

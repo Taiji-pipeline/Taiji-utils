@@ -1,111 +1,68 @@
 import numpy as np
-from statsmodels.tools import add_constant	
-from statsmodels.discrete.discrete_model import NegativeBinomial
-import statsmodels.api as sm
-import math
-from scipy import stats
-
-from sklearn.svm import SVR
-from sklearn.model_selection import GridSearchCV
-from sklearn.model_selection import learning_curve
-from sklearn.kernel_ridge import KernelRidge
-import matplotlib.pyplot as plt
+from statsmodels.nonparametric.kernel_regression import KernelReg
 
 from .Utils import readMatrix
 
-def fitSmooth(X, Y):
+def fitSmooth(X, Y, newX, output=None):
     X = X[..., np.newaxis]
-    #svr = GridSearchCV(SVR(kernel='rbf', gamma=0.1),
-    #    param_grid={"C": [1e0, 1e1, 1e2, 1e3],
-    #    "gamma": np.logspace(-2, 2, 5)})
-    model = GridSearchCV(KernelRidge(kernel='rbf', gamma=0.1),
-        param_grid={"alpha": [1e0, 0.1, 1e-2, 1e-3],
-        "gamma": np.logspace(-2, 2, 5)})
-    model.fit(X, Y)
+    if output is not None:
+        import matplotlib.pyplot as plt
+        plt.figure()
+        X_plot = np.linspace(np.min(X), np.max(X), 10000)[:, None]
+        y_, _ = KernelReg(Y, X, 'c').fit(X_plot)
+        plt.scatter(X, Y, c='k', label='data', zorder=1,
+                    edgecolors=(0, 0, 0))
+        plt.plot(X_plot, y_, c='r', label='fit')
+        plt.xlabel('log(gene mean)')
+        plt.ylabel('parameter')
+        plt.legend()
+        plt.savefig(output)
+        plt.close()
+    return KernelReg(Y, X, 'c').fit(newX)[0]
 
-    '''
-    X_plot = np.linspace(np.min(X), np.max(X), 10000)[:, None]
-    y_ = model.predict(X_plot)
-    plt.scatter(X, Y, c='k', label='data', zorder=1,
-                edgecolors=(0, 0, 0))
-    plt.plot(X_plot, y_, c='r', label='SVR')
-    plt.xlabel('data')
-    plt.ylabel('target')
-    plt.title('SVR')
-    plt.legend()
-    plt.savefig('1.png')
-    '''
+'''
+Y: numpy array, rows are samples, columns are genes 
+X: numpy array, columns are covariates, rows are samples.
+'''
+def fitNB2(X, Y):
+    from rpy2.robjects.packages import importr
+    import rpy2.robjects as robjects
+    from rpy2.robjects import numpy2ri
+    numpy2ri.activate()
 
-    return model
+    glmGamPoi = importr('glmGamPoi')
+    robjects.r('''
+        fit_glmGamPoi <- function(X, Y) {
+            fit <- glmGamPoi::glm_gp(data = t(Y),
+                           design = ~ .,
+                           col_data = as.data.frame(X),
+                           size_factors = FALSE)
+            fit$theta <- pmin(1 / fit$overdispersions, rowMeans(fit$Mu) / 1e-4)
+            colnames(fit$Beta)[match(x = 'Intercept', colnames(fit$Beta))] <- "(Intercept)"
+            return(cbind(fit$Beta, 1/fit$theta))
+        }
+        ''')
 
-def fitNB(X, Y):
-    X = add_constant(X)	
-    model = NegativeBinomial(Y, X).fit(disp=0, skip_hessian=True, maxiter=500)
-    if not model.mle_retvals['converged']:
-        model = NegativeBinomial(Y, X).fit_regularized(disp=0, skip_hessian=True, maxiter=500)
-    return model.params
+    rfit = robjects.r['fit_glmGamPoi']
+    res = np.array(rfit(X, Y))
+    numpy2ri.deactivate()
+    return(res)
 
-def fitNB_(X, Y):
-    def convert(y,mu):
-        return ((y - mu)**2 - mu) / mu
-
-    poisson_training_results = fitPoisson(X, Y)	
-    # STEP 2: We will now fit the auxiliary OLS regression model on the data set and use the fitted model to get the value of α.	
-    X_ = poisson_training_results.mu
-    Y_ = np.array(list(convert(a,b) for (a,b) in zip(X_, Y)))
-    aux_olsr_results = sm.OLS(Y_, X_).fit(disp=0)
-    # STEP 3: We supply the value of alpha found in STEP 2 into the statsmodels.genmod.families.family.NegativeBinomial class, and train the NB2 model on the training data set.	
-    X = add_constant(X)
-    return sm.GLM(Y, X,family=sm.families.NegativeBinomial(alpha=aux_olsr_results.params[0])).fit(disp=0)
-
-def fitPoisson(X, Y):
-    X = add_constant(X)	
-    return sm.GLM(Y, X, family=sm.families.Poisson()).fit(disp=0)
-
-def sctransform(cellxgene, nFeat=3000):
-    r, c = cellxgene.get_shape()
-    X = np.log10(cellxgene.sum(axis=1))
-    log_gene_mean = np.log10(gmeans(cellxgene))
-    params = []
-    idx = kdeSample(log_gene_mean)
-    for i in idx:
-        Y = cellxgene.getcol(i).todense()
-        params.append(fitNB(X, Y))
-    params = np.array(params)
-    beta0_fit = fitSmooth(log_gene_mean[idx], params[:, 0]) 
-    beta1_fit = fitSmooth(log_gene_mean[idx], params[:, 1]) 
-    alpha_fit = fitSmooth(log_gene_mean[idx], np.log(params[:, 2]))
-    beta0 = beta0_fit.predict(log_gene_mean[:, None])
-    beta1 = beta1_fit.predict(log_gene_mean[:, None])
-    alpha = np.exp(alpha_fit.predict(log_gene_mean[:, None]))
-
-    mu = np.exp(np.tile(beta0[np.newaxis, :], (r, 1)) + np.matmul(X[:, np.newaxis], beta1[np.newaxis, :]))
-    sigma = np.sqrt(mu + np.multiply(np.tile(alpha[np.newaxis, :], (r, 1)),  np.square(mu)))
-    cellxgene = cellxgene.todense()
-    z = np.clip((cellxgene - mu) / sigma, a_min=-math.sqrt(r), a_max=math.sqrt(r))
-    dispersion = np.ravel(np.var(z, axis=0))
-    features = dispersion.argsort()[-nFeat:]
-
-    v = np.ravel(np.var(z, axis=0))
-    plt.scatter(log_gene_mean, v, c='k', zorder=1, edgecolors=(0, 0, 0))
-    plt.xlabel('gene mean')
-    plt.ylabel('variance')
-    plt.title('')
-    plt.legend()
-    plt.savefig('1.png')
-
-    return z[:, features]
-
-def kdeSample(X, nGene=2000):
-    weights = np.reciprocal(stats.gaussian_kde(X, bw_method="silverman").evaluate(X))
-    prob = weights / np.sum(weights)
-    return np.random.choice(X.shape[0], size=nGene, replace=False, p=prob)
-
-# apply column-wise geometric mean
-def gmeans(cellxgene):
-    return np.ravel(np.expm1(cellxgene.log1p().mean(axis=0)))
+def sctransform(cellxgene, cell_reads, log_gene_mean, new_data, dir):
+    params = fitNB2(cell_reads, cellxgene.todense())
+    beta0 = fitSmooth(log_gene_mean, params[:, 0], new_data[:, None], output=dir + "/beta0.png")
+    beta1 = fitSmooth(log_gene_mean, params[:, 1], new_data[:, None], output=dir + "/beta1.png") 
+    alpha = np.exp(fitSmooth(log_gene_mean, np.log(params[:, 2]), new_data[:, None], output=dir + "/alpha.png"))
+    return(np.array([beta0, beta1, alpha]))
 
 def normalize(args):
     np.random.seed(0) 
-    z = sctransform(readMatrix(args.input))
-    np.savetxt(args.output, z)
+    inputMat = readMatrix(args.input)
+
+    with open(args.genemean, 'r') as fl:
+        geneMean = np.array([float(l.strip()) for l in fl])
+    with open(args.cellreads, 'r') as fl:
+        cellReads = np.array([float(l.strip()) for l in fl])
+    with open(args.data, 'r') as fl:
+        data = np.array([float(l.strip()) for l in fl])
+    np.savetxt(args.output, sctransform(inputMat, cellReads, geneMean, data, args.plot_dir))

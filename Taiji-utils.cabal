@@ -60,6 +60,7 @@ library
                      , data-default-class
                      , data-ordlist
                      , double-conversion
+                     , filepath
                      , hashable
                      , haskell-igraph
                      , matrices
