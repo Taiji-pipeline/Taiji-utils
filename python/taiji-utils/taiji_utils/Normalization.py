@@ -39,7 +39,7 @@ def fitNB2(X, Y):
                            size_factors = FALSE)
             fit$theta <- pmin(1 / fit$overdispersions, rowMeans(fit$Mu) / 1e-4)
             colnames(fit$Beta)[match(x = 'Intercept', colnames(fit$Beta))] <- "(Intercept)"
-            return(cbind(fit$Beta, 1/fit$theta))
+            return(cbind(fit$Beta, fit$theta))
         }
         ''')
 
@@ -52,8 +52,15 @@ def sctransform(cellxgene, cell_reads, log_gene_mean, new_data, dir):
     params = fitNB2(cell_reads, cellxgene.todense())
     beta0 = fitSmooth(log_gene_mean, params[:, 0], new_data[:, None], output=dir + "/beta0.png")
     beta1 = fitSmooth(log_gene_mean, params[:, 1], new_data[:, None], output=dir + "/beta1.png") 
-    alpha = np.exp(fitSmooth(log_gene_mean, np.log(params[:, 2]), new_data[:, None], output=dir + "/alpha.png"))
-    return(np.array([beta0, beta1, alpha]))
+
+    theta_proxy = np.log10(1 + 10**log_gene_mean / params[:, 2])
+    
+    # variance of NB is mu * (1 + mu / theta)
+    # (1 + mu / theta) is what we call overdispersion factor here
+    od_factor = fitSmooth(log_gene_mean, theta_proxy, new_data[:, None], output=dir + "/theta.png")
+    theta = 10**new_data / (10**od_factor - 1)
+
+    return(np.array([beta0, beta1, 1 / theta]))
 
 def normalize(args):
     np.random.seed(0) 

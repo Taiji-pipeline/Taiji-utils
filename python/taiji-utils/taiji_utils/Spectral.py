@@ -3,6 +3,7 @@ import numpy as np
 import math
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics.pairwise import cosine_similarity, rbf_kernel
+from sklearn.decomposition import PCA
 
 from .Utils import readMatrix, regress
 
@@ -21,7 +22,9 @@ def spectral(args):
 
     #n, _ = mat.get_shape()
     n, _ = mat.shape
-    if nSample < n:
+    if (args.distance == "rbf"):
+        res = PCA(n_components=args.dim).fit_transform(mat)
+    elif nSample < n:
         idx = np.arange(n)
         np.random.shuffle(idx)
         sample = mat[idx[:nSample], :]

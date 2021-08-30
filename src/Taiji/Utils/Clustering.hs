@@ -125,7 +125,9 @@ optimalParam output input = do
     savePlots output [] plt
     return optimal
   where
-    optimal = fst $ maximumBy (comparing (^._2._2)) $ filter (\x -> x^._2._3 >= 0.9) input
+    optimal = fst $ maximumBy (comparing (^._2._2)) $ case filter (\x -> x^._2._3 >= 0.9) input of
+        [] -> input
+        x -> x
     (res, dat) = unzip $ flip map (sortBy (comparing fst) input) $ \(r, (n, sil, stab)) ->
         (r, (fromIntegral n, sil, stab))
     (num, sils, stabs) = unzip3 dat
