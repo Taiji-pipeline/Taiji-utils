@@ -251,13 +251,16 @@ batchAveraging labels input = withTempDir Nothing $ \dir -> do
 
 leiden :: Double -> Optimizer -> Graph 'U () Double -> IO [[Int]]
 leiden resolution optimizer gr = withSeed 9304 $ fmap (sortBy (flip (comparing length))) .
-    I.findCommunity gr nodeWeight (Just id) I.leiden{I._resolution=res}
+    I.findCommunity gr nodeWeight edgeWeight I.leiden{I._resolution=res}
   where
-    (nodeWeight, res) = case optimizer of 
-        RBConfiguration ->
+    edgeWeight
+        | optimizer `elem` [RBConfiguration, CPM] = Nothing
+        | otherwise = Just id
+    (nodeWeight, res) 
+        | optimizer `elem` [RBConfiguration, RBConfigurationWeighted] =
             ( Just $ \i _ -> foldl1' (+) $ map (\j -> edgeLab gr (i, j)) $ neighbors gr i
             , resolution / (2 * (foldl1' (+) $ map snd $ labEdges gr)))
-        CPM -> (Nothing, resolution)
+        | otherwise = (Nothing, resolution)
 
 -- |
 reproducibility :: [Int]   -- membership

@@ -11,6 +11,7 @@ module Taiji.Utils.Matrix
     , Row
     , mkSpMatrix
     , mkSpMatrixMM
+    , mkSpMatrixMM'
     , saveMatrix
     , saveMatrixMM
     , streamRows
@@ -100,6 +101,23 @@ mkSpMatrixMM fl barcodes = do
   where
     f xs = (barcodes V.! (head xs ^. _2), map (\(i,_,x) -> (i,x)) xs)
 {-# INLINE mkSpMatrixMM #-}
+
+-- | Create matrix from matrix market format
+mkSpMatrixMM' :: FilePath
+             -> V.Vector B.ByteString  -- ^ Barcodes
+             -> IO (SpMatrix Double)
+mkSpMatrixMM' fl barcodes = do
+    [m,n,_] <- fmap (B.words . fromJust) $ runResourceT $ runConduit $ sourceFile fl .|
+        multiple ungzip .| linesUnboundedAsciiC .|
+        filterC (not . (=='%') . B.head) .| headC
+    return $ SpMatrix (readInt n) (readInt m) fl $ \x -> do
+        Dynamic mat@(SparseMatrix _ _ _) <- sourceFile x .| multiple ungzip .| fromMM'
+        toTriplet (mat :: SparseMatrix _ _ U.Vector Double) .|
+            L.groupBy ((==) `on` (^._2)) .| mapC f
+  where
+    f xs = (barcodes V.! (head xs ^. _2), map (\(i,_,x) -> (i,x)) xs)
+{-# INLINE mkSpMatrixMM' #-}
+
 
 saveMatrix :: FilePath
            -> (a -> B.ByteString)

@@ -352,8 +352,10 @@ instance Binary Cell
 instance NFData Cell
 
 data Optimizer = RBConfiguration
+               | RBConfigurationWeighted
                | CPM
-               deriving (Show, Generic)
+               | CPMWeighted
+               deriving (Show, Eq, Generic)
 instance Binary Optimizer
 instance FromJSON Optimizer
 instance ToJSON Optimizer
