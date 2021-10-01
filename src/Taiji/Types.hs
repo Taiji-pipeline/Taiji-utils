@@ -89,7 +89,7 @@ instance ToJSON SCATACSeqOptions where
 
 instance FromJSON SCATACSeqOptions where
     parseJSON = withObject "SCATACSeqOptions" $ \v -> SCATACSeqOptions
-        <$> v .:? "cluster_optimizer" .!= RBConfiguration
+        <$> v .:? "cluster_optimizer" .!= RBConfigurationWeighted
         <*> v .:? "cluster_resolution_list" .!= resolutions
         <*> v .:? "cluster_resolution"
         <*> v .:? "cluster_by_window" .!= False
@@ -124,7 +124,7 @@ instance ToJSON SCRNASeqOptions where
 
 instance FromJSON SCRNASeqOptions where
     parseJSON = withObject "SCRNASeqOptions" $ \v -> SCRNASeqOptions
-        <$> v .:? "cluster_optimizer" .!= RBConfiguration
+        <$> v .:? "cluster_optimizer" .!= RBConfigurationWeighted
         <*> v .:? "cluster_resolution_list" .!= resolutions
         <*> v .:? "cluster_resolution"
         <*> v .:? "cell_barcode_length"
@@ -147,7 +147,7 @@ data TaijiConfig = TaijiConfig
     , _taiji_callpeak_fdr :: Maybe Double
     , _taiji_callpeak_genome_size :: Maybe String
     , _taiji_bwa_index    :: FilePath
-    , _taiji_bwa_seed_length :: Int
+    , _taiji_bwa_seed_length :: Maybe Int
     , _taiji_star_index   :: FilePath
     , _taiji_genome_index :: FilePath
     , _taiji_rsem_index   :: FilePath
@@ -192,7 +192,7 @@ instance FromJSON TaijiConfig where
                       | otherwise -> Nothing )
             <*> v .:? "bwa_index" .!=
                 (genomeDir <> "BWA_index/" <> fromMaybe "genome" assembly <> ".fa")
-            <*> v .:? "bwa_seed_length" .!= 32
+            <*> v .:? "bwa_seed_length"
             <*> v .:? "star_index" .!= (genomeDir ++ "STAR_index/")
             <*> v .:? "genome_index" .!=
                 (genomeDir <> fromMaybe "genome" assembly <> ".index")
