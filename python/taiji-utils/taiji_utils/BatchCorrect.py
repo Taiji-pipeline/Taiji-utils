@@ -1,7 +1,13 @@
 import numpy as np
 from sklearn.neighbors import KDTree
 import itertools
+from scipy.special import logsumexp
 from sklearn.cluster import KMeans
+
+# exp transform the weights and then normalize them to sum to 1.
+def normalize(ws):
+    s = logsumexp(ws)
+    return np.exp(ws - s)
 
 class Projector(object):
     def __init__(self, X, Y):
@@ -13,7 +19,7 @@ class Projector(object):
             P = self.reference
             U = self.vector
             d = np.sqrt(np.sum((P - x)**2, axis=1))
-            w = np.exp(-(d/0.005))
+            w = normalize(-(d/0.005))
             #w = 1/d
             return (x + weight * np.average(U, axis=0, weights=w))
         return np.apply_along_axis(project, 1, X)
