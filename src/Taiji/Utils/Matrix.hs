@@ -127,20 +127,23 @@ saveMatrix output f mat = runResourceT $ runCConduit $ streamRows mat =$=&
     sinkRows (_num_row mat) (_num_col mat) f output
 {-# INLINE saveMatrix #-}
 
--- | Save matrix. transposed
+-- | Save matrix
 saveMatrixMM :: FilePath
              -> SpMatrix Int
              -> IO ()
-saveMatrixMM output mat = do
-    vec <- runResourceT $ runConduit $
-        zipSources (iterateC succ 0) (streamRows mat) .| 
-        concatMapC f .| sinkVector :: IO (U.Vector (Int,Int,Int))
-    case fromTriplet (_num_col mat, _num_row mat) vec of
-        Dynamic m -> runResourceT $ runConduit $
-            toMM (m :: SparseMatrix _ _ U.Vector Int) .|
-            gzip .| sinkFile output
+saveMatrixMM output mat = runResourceT $ runConduit $ do
+    (n, tmp) <- zipSources (iterateC succ 0) (streamRows mat) .| 
+        zipSinks (foldlC (\s x -> s + length (snd $ snd x)) 0)
+            (concatMapC f .| unlinesAsciiC .| sinkTempFile (takeDirectory output) "tmp")
+    let header = B.unlines
+            [ "%%MatrixMarket matrix coordinate integer general"
+            , "%", B.pack $ printf "%d %d %d" (_num_row mat) (_num_col mat) n ]
+    (yield header >> sourceFile tmp) .| gzip .| sinkFile output
   where
-    f (i, (_, xs)) = map (\(j,x) -> (j,i,x)) xs
+    f (i, (_, xs)) = flip map (sortBy (comparing fst) xs) $ \(j, x) -> B.unwords
+        [ fromJust $ packDecimal (i+1)
+        , fromJust $ packDecimal (j+1)
+        , fromJust $ packDecimal x ]
 {-# INLINE saveMatrixMM #-}
 
 streamRows :: SpMatrix a -> ConduitT () (Row a) (ResourceT IO) ()

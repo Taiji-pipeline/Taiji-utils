@@ -13,6 +13,7 @@ module Taiji.Utils.Clustering
     , silhouette
     , confusionTable
     , batchCorrect
+    , batchCorrectWithHarmony
     , leiden
     , ari
     ) where
@@ -235,6 +236,42 @@ batchCorrect batchInfo input = do
         groupBy ((==) `on` (snd . snd)) $ sortBy (comparing (snd . snd)) $
         mapMaybe (\(i, b) -> maybe Nothing (\x -> Just (i,x)) b) $ zip [0..] batchInfo
 {-# INLINE batchCorrect #-}
+
+batchCorrectWithHarmony :: [Maybe (B.ByteString, Maybe B.ByteString)]  -- ^ label and group
+             -> V.Vector (U.Vector Double)    -- ^ Data
+             -> IO (V.Vector (U.Vector Double))
+batchCorrectWithHarmony batchInfo input = do
+    vec <- V.thaw input
+    forM_ batchGroups $ \(idx, label) -> when (length (nubSort label) > 1) $ do
+        res <- harmony label (map (input V.!) idx)
+        forM_ (zip idx res) $ \(i, r) -> VM.unsafeWrite vec i r
+    V.unsafeFreeze vec
+  where
+    batchGroups = map (unzip . map (\(i, (x, _)) -> (i, x))) $
+        groupBy ((==) `on` (snd . snd)) $ sortBy (comparing (snd . snd)) $
+        mapMaybe (\(i, b) -> maybe Nothing (\x -> Just (i,x)) b) $ zip [0..] batchInfo
+{-# INLINE batchCorrectWithHarmony #-}
+
+harmony :: [B.ByteString]    -- ^ Batch labels
+        -> [U.Vector Double]    -- ^ Data
+        -> IO [U.Vector Double]
+harmony labels dat = withTempDir Nothing $ \tmp -> do
+    let input = tmp <> "/tmp.input.tsv"
+        output = tmp <> "/tmp.output.tsv"
+        script = tmp <> "/tmp.script.R"
+    B.writeFile input $ B.unlines $
+        zipWith (\lab xs -> B.intercalate "\t" $ (lab:) $ map toShortest $ U.toList xs)
+        labels dat
+    writeFile script $ unlines
+        [ "library(harmony)"
+        , printf "mat <- read.table(\"%s\", sep='\t')" input
+        , "names <- mat[, 1]"
+        , "mat <- mat[, -1]"
+        , "mat <- HarmonyMatrix(mat, names, 'dataset', do_pca=F, theta=10, lambda=1)"
+        , printf "write.table(mat, file=\"%s\", sep='\t', row.names=F, col.names=F)" output ]
+    shelly $ run_ "Rscript" [T.pack script]
+    map (U.fromList . map readDouble . B.split '\t') . B.lines <$> B.readFile output
+{-# INLINE harmony #-}
 
 batchAveraging :: [B.ByteString]    -- ^ Batch labels
                -> [U.Vector Double]    -- ^ Data
