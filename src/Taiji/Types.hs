@@ -47,6 +47,7 @@ import Bio.Pipeline.Download (getUrl)
 import Bio.Utils.Misc (readDouble)
 import Data.BBI.BigBed (BBedFile)
 import           Data.Aeson
+import qualified Data.Aeson.KeyMap as K
 import Data.Char
 import qualified Data.Text as T
 import Lens.Micro ((^.))
@@ -167,9 +168,9 @@ instance ToJSON TaijiConfig where
 -- Drop "_taiji_" prefix
 instance FromJSON TaijiConfig where
     parseJSON = withObject "TaijiConfig" $ \v -> do
-        let String dir = M.lookupDefault (error "no output_dir") "output_dir" v
+        let String dir = fromMaybe (error "no output_dir") $ K.lookup "output_dir" v
             genomeDir = T.unpack dir ++ "/GENOME/"
-            assembly = case M.lookup "assembly" v of
+            assembly = case K.lookup "assembly" v of
                 Just (String x) -> Just $ T.unpack $ T.toUpper x
                 _ -> Nothing
         TaijiConfig
